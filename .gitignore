@@ -1,3 +1,13 @@
 working_dir
 replay*
 viewer_latest*
+
+# Eclipse
+.classpath
+.project
+.settings/
+
+# Intellij
+.idea/
+*.iml
+*.iws
