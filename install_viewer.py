@@ -16,6 +16,11 @@ def isNewer(new, original):
     return majorMult * major2 + minorMult * minor2 + patchMult * minor2 > majorMult * major1 + minorMult * minor1 + patchMult * minor1
 
 
+def downloadProgress(count, blockSize, totalSize):
+    if count % 1000 == 0:
+        percentDone = float(count) * blockSize / totalSize
+        print("%4.2f%%" % percentDone,end='\b\b\b\b\b\b',flush=True)
+
 def main():
     currentInstallFileName = "viewer_currentInstall.json"
 
@@ -78,7 +83,8 @@ def main():
                 os.remove(downloadLocation)
                 print("Deleted old archive.")
             print("Downloading new client... This could take a while.")
-            urlretrieve(newestUrl, downloadLocation)
+            urlretrieve(newestUrl, downloadLocation, downloadProgress)
+            print()
             print("Successfully downloaded files. ")
             outputDirectory = os.path.join(directory, viewerDirectory)
             if os.path.exists(outputDirectory):
@@ -94,6 +100,21 @@ def main():
                 print("Cleaning up downloads...")
                 os.remove(downloadLocation)
                 print("Cleaned up")
+            try:
+                if currentInfo['system'] == 'Linux32':
+                    print("Fixing permissions...You'll need to provide elevated privileges for this to work.")
+                    os.system("sudo chmod 777 viewer_latest/Linux32/battleclient18.x86")
+                    print("Done fixing permissions!")
+                elif currentInfo['system'] == 'Linux64':
+                    print("Fixing permissions...You'll need to provide elevated privileges for this to work.")
+                    os.system("sudo chmod 777 viewer_latest/Linux64/battleclient18.x86_64")
+                    print("Done fixing permissions!")
+                if currentInfo['system'] == 'Mac':
+                    print("Fixing permissions...You'll need to provide elevated privileges for this to work.")
+                    os.system("sudo chmod -R 777 viewer_latest/Mac/battleclient18.app")
+                    print("Done fixing permissions!")
+            except:
+                pass
             print("Updating current version number...")
             newInfo = {}
             newInfo['version'] = latestVersion
