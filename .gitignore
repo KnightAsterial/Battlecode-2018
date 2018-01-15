@@ -12,3 +12,4 @@ viewer_currentInstall.json
 .idea/
 *.iml
 *.iws
+/bin/
