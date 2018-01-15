@@ -34,6 +34,7 @@ public class Player {
         dirs[5] = Direction.Southeast;
         dirs[6] = Direction.Southwest;
         dirs[7] = Direction.West;
+        System.out.println(dirs);
         
         while (true) {
             System.out.println("Current round: "+gc.round());
