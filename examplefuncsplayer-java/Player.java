@@ -25,8 +25,12 @@ public class Player {
         // Direction is a normal java enum.
         Direction[] directions = Direction.values();
 
+        for (int i = 0; i < directions.length; i++) {
+            System.out.println(directions[i]);
+        }
+
         while (true) {
-            System.out.println("Current round: "+gc.round());
+            System.out.println("Current round: "+gc.round() + "with timeLeftMS " + gc.getTimeLeftMs());
             // VecUnit is a class that you can think of as similar to ArrayList<Unit>, but immutable.
             VecUnit units = gc.myUnits();
             for (int i = 0; i < units.size(); i++) {
