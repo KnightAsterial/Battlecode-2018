@@ -85,7 +85,7 @@ public class Player {
 	                	//senses adjacent friendly within 2 tiles
 	                	VecUnit unitsNearWorker = gc.senseNearbyUnitsByTeam(unit.location().mapLocation(), 8, gc.team());
 	                	//if there is a blueprint to build, build it
-	                	for (int index = 0; index < unitsNearWorker.size(); i++){
+	                	for (int index = 0; index < unitsNearWorker.size(); index++){
 	                		Unit nearbyUnit = unitsNearWorker.get(index);
 	                		if (gc.canBuild(unit.id(), nearbyUnit.id())){
 	                			gc.build(unit.id(), nearbyUnit.id());
