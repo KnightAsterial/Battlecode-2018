@@ -57,7 +57,7 @@ public class Player {
 	            	else if (unit.unitType().equals(UnitType.Healer)){
 	            		numHealers++;
 	            	}
-	            	else if (unit.unitType().equals(UnitType.Knights)){
+	            	else if (unit.unitType().equals(UnitType.Knight)){
 	            		numKnights++;
 	            	}
 	            	else if (unit.unitType().equals(UnitType.Mage)){
