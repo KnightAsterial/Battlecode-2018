@@ -44,43 +44,48 @@ public class Player {
     public static GameController gc;
 
     public static void main(String[] args) {
+        try {
+            // Connect to the manager, starting the game. Initializing methods
+            gc = new GameController();
+            earthMap = gc.startingMap(Planet.Earth);
+            marsMap = gc.startingMap(Planet.Mars);
+            spreadPathfindingMapEarth = new Direction[(int) earthMap.getHeight()][(int) earthMap.getWidth()];
+            spreadPathfindingMapMars = new Direction[(int) marsMap.getHeight()][(int) marsMap.getWidth()];
+            MapLocation target;
+            boolean hasTarget = false;
 
-        // Connect to the manager, starting the game. Initializing methods
-        gc = new GameController();
-        earthMap = gc.startingMap(Planet.Earth);
-        marsMap = gc.startingMap(Planet.Mars);
-        spreadPathfindingMapEarth = new Direction[(int)earthMap.getHeight()][(int)earthMap.getWidth()];
-        spreadPathfindingMapMars = new Direction[(int)marsMap.getHeight()][(int)marsMap.getWidth()];
-        MapLocation target;
-        boolean hasTarget = false;
-
-        target = new MapLocation(Planet.Earth, 3,3);
-        hasTarget = true;
+            target = new MapLocation(Planet.Earth, 3, 3);
+            hasTarget = true;
 
 
-        for (int i = 0; i < directions.length; i++) {
-            System.out.println("directions[" + i + "] = " + directions[i]);
-        }
-
-        while (true) {
-            System.out.println("Current round: "+gc.round() + "with ms time left: " + gc.getTimeLeftMs());
-
-            if (hasTarget == true){
-                updatePathfindingMap(target);
+            for (int i = 0; i < directions.length; i++) {
+                System.out.println("directions[" + i + "] = " + directions[i]);
             }
 
-            // VecUnit is a class that you can think of as similar to ArrayList<Unit>, but immutable.
-            VecUnit units = gc.myUnits();
-            for (int i = 0; i < units.size(); i++) {
-                Unit unit = units.get(i);
+            while (true) {
+                System.out.println("Current round: " + gc.round() + "with ms time left: " + gc.getTimeLeftMs());
 
-                // Most methods on gc take unit IDs, instead of the unit objects themselves.
-                if (gc.isMoveReady(unit.id())) {
-                    moveAlongBFSPath(gc, unit);
+                if (hasTarget == true) {
+                    updatePathfindingMap(target);
                 }
+
+                // VecUnit is a class that you can think of as similar to ArrayList<Unit>, but immutable.
+                VecUnit units = gc.myUnits();
+                for (int i = 0; i < units.size(); i++) {
+                    Unit unit = units.get(i);
+                    System.out.println(unit.location().mapLocation());
+                    // Most methods on gc take unit IDs, instead of the unit objects themselves.
+                    if (gc.isMoveReady(unit.id())) {
+                        moveAlongBFSPath(gc, unit);
+                    }
+                }
+                // Submit the actions we've done, and wait for our next turn.
+                gc.nextTurn();
             }
-            // Submit the actions we've done, and wait for our next turn.
-            gc.nextTurn();
+        }
+        catch(Exception e){
+            System.out.println("Exception in main");
+            e.printStackTrace();
         }
     }
 
@@ -179,7 +184,14 @@ public class Player {
 
     public static void moveAlongBFSPath(GameController gc, Unit unit){
         MapLocation unitLocation = unit.location().mapLocation();
-        Direction directionToMove = bc.bcDirectionOpposite(getValueInPathfindingMap(unitLocation.getX(), unitLocation.getY()));
+        Direction directionToMove;
+        if (gc.planet().equals(Planet.Earth)){
+            directionToMove = bc.bcDirectionOpposite(getValueInPathfindingMap(unitLocation.getX(), unitLocation.getY(), spreadPathfindingMapEarth));
+        }
+        else{
+            directionToMove = bc.bcDirectionOpposite(getValueInPathfindingMap(unitLocation.getX(), unitLocation.getY(), spreadPathfindingMapMars));
+        }
+
         tryMove(gc, unit, directionToMove);
     }
 
@@ -209,10 +221,10 @@ public class Player {
                 if ( (tempLocation.getY() >= 0 && tempLocation.getY() < currentMap.length)
                         && (tempLocation.getX() >= 0 && tempLocation.getX() < currentMap[0].length)) {
                     //only runs calculation if that area of the pathfindingMap hasn't been filled in yet
-                    if (getValueInPathfindingMap(tempLocation.getX(), tempLocation.getY()) == null) {
-                        if (gc.startingMap(gc.planet()).isPassableTerrainAt(new MapLocation(gc.planet(), tempLocation.getX(), tempLocation.getY())) == 1) {
+                    if (getValueInPathfindingMap(tempLocation.getX(), tempLocation.getY(), currentMap) == null) {
+                        if (gc.startingMap(gc.planet()).isPassableTerrainAt(new MapLocation(gc.planet(), tempLocation.getX(), tempLocation.getY())) != 0) {
                             bfsQueue.add(tempLocation);
-                            setValueInPathfindingMap(tempLocation.getX(), tempLocation.getY(), directions[i]);
+                            setValueInPathfindingMap(tempLocation.getX(), tempLocation.getY(), directions[i], currentMap);
                         }
                     }
                 }
@@ -225,28 +237,14 @@ public class Player {
         else{
             spreadPathfindingMapMars = currentMap;
         }
-        //FIX BECAUSE MODIFY METHOD IS CHANGING ORIGINAL METHOD WHILE I WANT IT TO CHANGE CURRENTMAP
-
     }
 
-    public static Direction getValueInPathfindingMap(int x, int y){
-        if (gc.planet().equals(Planet.Earth)){
-            return spreadPathfindingMapEarth[spreadPathfindingMapEarth.length-1-y][x];
-        }
-        else{
-            return spreadPathfindingMapMars[spreadPathfindingMapMars.length-1-y][x];
-        }
-
+    public static Direction getValueInPathfindingMap(int x, int y, Direction[][] map){
+        return map[map.length-1-y][x];
     }
 
-    public static void setValueInPathfindingMap(int x, int y, Direction myDirection){
-        if (gc.planet().equals(Planet.Earth)){
-            spreadPathfindingMapEarth[spreadPathfindingMapEarth.length-1-y][x] = myDirection;
-        }
-        else{
-            spreadPathfindingMapMars[spreadPathfindingMapMars.length-1-y][x] = myDirection;
-        }
-
+    public static void setValueInPathfindingMap(int x, int y, Direction myDirection, Direction[][] map){
+        map[map.length-1-y][x] = myDirection;
     }
 
 }
