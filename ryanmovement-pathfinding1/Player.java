@@ -53,6 +53,7 @@ public class Player {
             spreadPathfindingMapMars = new Direction[(int) marsMap.getHeight()][(int) marsMap.getWidth()];
             MapLocation target;
             boolean hasTarget = false;
+            boolean targetChanged = true;
 
             target = new MapLocation(Planet.Earth, 4, 1);
             hasTarget = true;
@@ -65,8 +66,9 @@ public class Player {
             while (true) {
                 System.out.println("Current round: " + gc.round() + "with ms time left: " + gc.getTimeLeftMs());
 
-                if (hasTarget == true) {
+                if (targetChanged) {
                     updatePathfindingMap(target);
+                    targetChanged = false;
                 }
 
                 // VecUnit is a class that you can think of as similar to ArrayList<Unit>, but immutable.
