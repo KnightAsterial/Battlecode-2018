@@ -66,6 +66,7 @@ public class Player {
             while (true) {
                 System.out.println("Current round: " + gc.round() + "with ms time left: " + gc.getTimeLeftMs());
 
+                //NEED TO FIX, DOESN"T ACCOUNT FOR MARS TARGET CHANGING
                 if (targetChanged) {
                     updatePathfindingMap(target);
                     targetChanged = false;
