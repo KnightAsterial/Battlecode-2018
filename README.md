@@ -1,3 +1,12 @@
+# TO DO
+* Right now I am working on a Breadth First Search pathfinding. However, this only deals with natural barriers and doesn't take into account units. Think of a way to deal with that.
+* More pressing issue: **we cannot deal with split maps using this single array pathfinding**
+* improve to ryanpathfinding1 so BFS can opperate for more than one target, different paths for different units, etc.
+
+## Notes
+* If getting a "time out after 50 seconds -> killed" error, a solution isn't known yet but people recommend to reduce API calls and it seemed to help
+
+
 # Scaffold for Battlecode 2018
 
 The game now supports running with docker AND running without docker. See below for the docker instructions.
@@ -131,43 +140,43 @@ When you get the message: `To play games open http://localhost:6147/run.html in 
 
 First, install Docker Toolbox: https://docs.docker.com/toolbox/toolbox_install_windows/
 
-Download the executable and follow the wizard to install it. 
+Download the executable and follow the wizard to install it.
 
 Search for 'Docker Quickstart Terminal' and open it. Do not open it twice, because multiple running copies do not work properly.
 
 Wait a few minutes. You will see a picture of a whale when it finishes. Later, you will enter commands in this docker quickstart terminal, so don't close it.
 
-Download the battlecode 2018 scaffold from https://github.com/battlecode/bc18-scaffold. You can use the green button to download the files and then manually unzip them, or you can clone the repository using Github if you're familiar with that. 
+Download the battlecode 2018 scaffold from https://github.com/battlecode/bc18-scaffold. You can use the green button to download the files and then manually unzip them, or you can clone the repository using Github if you're familiar with that.
 
-Check that you have at least 2 GB of space available on your hard drive. You will need this much space for the docker install. 
+Check that you have at least 2 GB of space available on your hard drive. You will need this much space for the docker install.
 
-In the quickstart terminal, navigate to the location of the unzipped files that you downloaded. You can navigate using 'cd' and 'ls'. For more information on navigating a file system with a unix terminal, see https://www.digitalocean.com/community/tutorials/basic-linux-navigation-and-file-management. 
+In the quickstart terminal, navigate to the location of the unzipped files that you downloaded. You can navigate using 'cd' and 'ls'. For more information on navigating a file system with a unix terminal, see https://www.digitalocean.com/community/tutorials/basic-linux-navigation-and-file-management.
 
-Once you have navigated to where your bc18-scaffold repository is located, type "bash run.sh" (then press enter) to start the battlecode server. The first time you run this command, it will take a while downloading the docker installation. 
+Once you have navigated to where your bc18-scaffold repository is located, type "bash run.sh" (then press enter) to start the battlecode server. The first time you run this command, it will take a while downloading the docker installation.
 
-The Battlecode server will initialize and you will see the prompt, `To play games open http://localhost:6147/run.html in your browser on Mac/Linux/WindowsPro, or http://192.168.99.100:6147/run.html on Windows10Home. `. Do not close the docker quickstart window. Go to the second url http://192.168.99.100:6147/run.html and you should see a website. You run Battlecode matches using this website graphical user interface (GUI). The docker quickstart window will not accept commands at this point; it is listening to the GUI. 
+The Battlecode server will initialize and you will see the prompt, `To play games open http://localhost:6147/run.html in your browser on Mac/Linux/WindowsPro, or http://192.168.99.100:6147/run.html on Windows10Home. `. Do not close the docker quickstart window. Go to the second url http://192.168.99.100:6147/run.html and you should see a website. You run Battlecode matches using this website graphical user interface (GUI). The docker quickstart window will not accept commands at this point; it is listening to the GUI.
 
-Run a test match using the GUI. Select "Run Game" at the lower right. Live player logs should appear on screen. When the match ends, the live logs will disappear and a message appears on the website indicating which player won. Also, a match file is produced. The default name of the match file is "replay.bc18". This file appears in the bc18-scaffold directory that has the run.sh file. 
+Run a test match using the GUI. Select "Run Game" at the lower right. Live player logs should appear on screen. When the match ends, the live logs will disappear and a message appears on the website indicating which player won. Also, a match file is produced. The default name of the match file is "replay.bc18". This file appears in the bc18-scaffold directory that has the run.sh file.
 
 To see a visual representation of the match, you can load the match file using the viewer. First, let's download the viewer.
 
-Visit http://battlecode.org/#/materials/releases and select the "Windows" link under the bullet point, "Download the Viewer". 
+Visit http://battlecode.org/#/materials/releases and select the "Windows" link under the bullet point, "Download the Viewer".
 
 Unzip the file you downloaded.
 
-Before running the viewer, reduce your system volume to a reasonable level. The viewer plays music. 
+Before running the viewer, reduce your system volume to a reasonable level. The viewer plays music.
 
 Double-click clientWindows.exe. Select your choice of resolution. Windowed mode is convenient for running next to your code. Once you have configured the player, click "Play!"
 
-Now load the match file by selecting the icon with three bars at the top of the screen. Navigate to the bc18-scaffold directory, where the replay.bc18 file is stored. Then click the file, and at the bottom of the window click "Select". Now the replay file is loaded, so start the replay running using the triangle button in the top left. You can zoom out with the mouse scroll wheel, and pan left/right/up/down with the arrow keys. 
+Now load the match file by selecting the icon with three bars at the top of the screen. Navigate to the bc18-scaffold directory, where the replay.bc18 file is stored. Then click the file, and at the bottom of the window click "Select". Now the replay file is loaded, so start the replay running using the triangle button in the top left. You can zoom out with the mouse scroll wheel, and pan left/right/up/down with the arrow keys.
 
 ### Writing your own bot
 
 To get started with your bot you can modify one of the examplefuncs-players located in the bc18-scaffold directory. You can modify the run.py for python, the main.c for c, and player.java file for java. Then use the web interface to queue a game as before.
 
-Players are named after the directory where they are located. For example, the player "examplesfuncplayer-python" corresponds to the folder where the python code is located. 
+Players are named after the directory where they are located. For example, the player "examplesfuncplayer-python" corresponds to the folder where the python code is located.
 
-You can create a new player by copying the examplefuncsplayer and then renaming the folder. The website interface can't see your new folder until you refresh the website. Select the website and press F5 or ctrl+r. Your new bot will then appear in the dropdown menu. 
+You can create a new player by copying the examplefuncsplayer and then renaming the folder. The website interface can't see your new folder until you refresh the website. Select the website and press F5 or ctrl+r. Your new bot will then appear in the dropdown menu.
 
 ### Check for the latest release
 
@@ -197,7 +206,7 @@ docker pull battlecode/battlecode-2018
 5. The Python example bot explodes!
 
  There is currently an API bug tied to building blueprints. If you avoid `gc.blueprint()` then you should be fine for the time being.
- 
+
 6. Docker is taking up too much memory! / I get out of memory errors when running `run.sh`!
 
  Docker saves some information between runs called images, containers, and volumes. Unchecked, these can quickly take over many gigs of storage. Occasionally, run the following 4 lines:
@@ -216,7 +225,7 @@ docker pull battlecode/battlecode-2018
 8. I don't see any players/maps in the dropdown and/or my console says that `/player` can't be found!
 
  This one is pretty tricky to track down. Try looking at your `run.sh` file and changing `/players` to `/player` if necessary. You can also try running the `pwd` command in your scaffold directory and replacing `$PWD` in `run.sh` with that absolute path. Additionally make sure your filepath doesn't contain any spaces, special characters, etc. that may confuse the parser.
- 
+
 9. The Python bot crashes with an error of the form `can't open file run.py`!
 
  The issue is most likely that you are using Windows line endings (\r\n) rather than Unix line endings (\n) which confuses the shell script and gives some silly error. To fix this, make sure to convert all your `run.sh` files to Unix format before running a game. You can accomplish this with an editor like Notepad++ (Edit -> EOL Conversion -> Unix/OSX Format) or the `dos2unix` command line tool (e.g. `dos2unix */run.sh`).
