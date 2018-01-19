@@ -23,7 +23,7 @@ public class Player {
     /*
     in format
     y
-
+    ^
     | [] [] [] []
     | [] [] [] []
     | [] [] [] []
@@ -54,7 +54,7 @@ public class Player {
             MapLocation target;
             boolean hasTarget = false;
 
-            target = new MapLocation(Planet.Earth, 3, 3);
+            target = new MapLocation(Planet.Earth, 4, 1);
             hasTarget = true;
 
 
@@ -73,7 +73,6 @@ public class Player {
                 VecUnit units = gc.myUnits();
                 for (int i = 0; i < units.size(); i++) {
                     Unit unit = units.get(i);
-                    System.out.println(unit.location().mapLocation());
                     // Most methods on gc take unit IDs, instead of the unit objects themselves.
                     if (gc.isMoveReady(unit.id())) {
                         moveAlongBFSPath(gc, unit);
@@ -200,8 +199,15 @@ public class Player {
      */
     public static void updatePathfindingMap(MapLocation myLocation){
         Direction[][] currentMap;
-
+        boolean isEarth;
         if (gc.planet().equals(Planet.Earth)){
+            isEarth = true;
+        }
+        else{
+            isEarth = false;
+        }
+
+        if (isEarth){
             currentMap = new Direction[spreadPathfindingMapEarth.length][spreadPathfindingMapEarth[0].length];
         }
         else{
@@ -222,16 +228,24 @@ public class Player {
                         && (tempLocation.getX() >= 0 && tempLocation.getX() < currentMap[0].length)) {
                     //only runs calculation if that area of the pathfindingMap hasn't been filled in yet
                     if (getValueInPathfindingMap(tempLocation.getX(), tempLocation.getY(), currentMap) == null) {
-                        if (gc.startingMap(gc.planet()).isPassableTerrainAt(new MapLocation(gc.planet(), tempLocation.getX(), tempLocation.getY())) != 0) {
-                            bfsQueue.add(tempLocation);
-                            setValueInPathfindingMap(tempLocation.getX(), tempLocation.getY(), directions[i], currentMap);
+                        if (isEarth){
+                            if (earthMap.isPassableTerrainAt(new MapLocation(Planet.Earth, tempLocation.getX(), tempLocation.getY())) != 0) {
+                                bfsQueue.add(tempLocation);
+                                setValueInPathfindingMap(tempLocation.getX(), tempLocation.getY(), directions[i], currentMap);
+                            }
+                        }
+                        else{
+                            if (marsMap.isPassableTerrainAt(new MapLocation(Planet.Mars, tempLocation.getX(), tempLocation.getY())) != 0) {
+                                bfsQueue.add(tempLocation);
+                                setValueInPathfindingMap(tempLocation.getX(), tempLocation.getY(), directions[i], currentMap);
+                            }
                         }
                     }
                 }
             }
         }
 
-        if (gc.planet().equals(Planet.Earth)){
+        if (isEarth){
             spreadPathfindingMapEarth = currentMap;
         }
         else{
