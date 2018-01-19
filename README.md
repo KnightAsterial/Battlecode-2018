@@ -5,6 +5,8 @@
 
 ## Notes
 * If getting a "time out after 50 seconds -> killed" error, a solution isn't known yet but people recommend to reduce API calls and it seemed to help
+* from sprint tornament: healers + strong ranger micro is the way to go
+* worker replication is soooo strong, way to go
 
 
 # Scaffold for Battlecode 2018
