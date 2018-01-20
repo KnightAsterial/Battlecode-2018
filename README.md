@@ -1,6 +1,6 @@
 # TO DO
 * Right now I am working on a Breadth First Search pathfinding. However, this only deals with natural barriers and doesn't take into account units. Think of a way to deal with that.
-* More pressing issue: **we cannot deal with split maps using this single array pathfinding**
+* More pressing issue: **we cannot deal with split maps using this single array pathfinding** (NULL POINTER EXCEPTIONS ARE THROWN!!!!!!!)
 * improve to ryanpathfinding1 so BFS can opperate for more than one target, different paths for different units, etc.
 
 ## Notes
@@ -8,6 +8,8 @@
 * from sprint tornament: healers + strong ranger micro is the way to go
 * worker replication is soooo strong, way to go
 * apparently the top sprint team used A*
+
+* first turn map analysis: run BFS on enemy location (we know its symmetrical to our starting location) and if any of our positions are a null on the map, we know the opponent is unreachable (walled off);
 
 
 # Scaffold for Battlecode 2018
