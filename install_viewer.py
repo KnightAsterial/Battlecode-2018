@@ -18,7 +18,7 @@ def isNewer(new, original):
 
 def downloadProgress(count, blockSize, totalSize):
     if count % 1000 == 0:
-        percentDone = float(count) * blockSize / totalSize
+        percentDone = float(count) * blockSize / totalSize * 100.0
         print("%4.2f%%" % percentDone,end='\b\b\b\b\b\b',flush=True)
 
 def main():
@@ -102,16 +102,19 @@ def main():
                 print("Cleaned up")
             try:
                 if currentInfo['system'] == 'Linux32':
-                    print("Fixing permissions...You'll need to provide elevated privileges for this to work.")
-                    os.system("sudo chmod 777 viewer_latest/Linux32/battleclient18.x86")
+                    print("Fixing permissions...")
+                    print("chmod 777 viewer_latest/Linux32/battleclient18.x86")
+                    os.system("chmod 777 viewer_latest/Linux32/battleclient18.x86")
                     print("Done fixing permissions!")
                 elif currentInfo['system'] == 'Linux64':
-                    print("Fixing permissions...You'll need to provide elevated privileges for this to work.")
-                    os.system("sudo chmod 777 viewer_latest/Linux64/battleclient18.x86_64")
+                    print("Fixing permissions...")
+                    print("chmod 777 viewer_latest/Linux64/battleclient18.x86_64")
+                    os.system("chmod 777 viewer_latest/Linux64/battleclient18.x86_64")
                     print("Done fixing permissions!")
                 if currentInfo['system'] == 'Mac':
-                    print("Fixing permissions...You'll need to provide elevated privileges for this to work.")
-                    os.system("sudo chmod -R 777 viewer_latest/Mac/battleclient18.app")
+                    print("Fixing permissions...")
+                    print("chmod -R 777 viewer_latest/Mac/battleclient18.app")
+                    os.system("chmod -R 777 viewer_latest/Mac/battleclient18.app")
                     print("Done fixing permissions!")
             except:
                 pass
