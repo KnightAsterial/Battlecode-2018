@@ -37,6 +37,8 @@ public class Player {
      */
     public static Direction[][] spreadPathfindingMapEarth;
     public static Direction[][] spreadPathfindingMapMars;
+    public static Dimension earthDimensions;
+    public static Dimension marsDimensions;
 
     public static PlanetMap earthMap;
     public static PlanetMap marsMap;
@@ -49,28 +51,48 @@ public class Player {
             gc = new GameController();
             earthMap = gc.startingMap(Planet.Earth);
             marsMap = gc.startingMap(Planet.Mars);
-            spreadPathfindingMapEarth = new Direction[(int) earthMap.getHeight()][(int) earthMap.getWidth()];
-            spreadPathfindingMapMars = new Direction[(int) marsMap.getHeight()][(int) marsMap.getWidth()];
+            earthDimensions = new Dimension((int)earthMap.getWidth(), (int)earthMap.getHeight());
+            marsDimensions = new Dimension((int)marsMap.getWidth(), (int)marsMap.getHeight());
+            int currentTurn;
+
             MapLocation target;
             boolean hasTarget = false;
-            boolean targetChanged = true;
-
             target = new MapLocation(Planet.Earth, 4, 1);
             hasTarget = true;
 
+            //first turn code
+            spreadPathfindingMapEarth = updatePathfindingMap(target, earthMap);
+            spreadPathfindingMapMars = updatePathfindingMap(target, marsMap);
 
             for (int i = 0; i < directions.length; i++) {
                 System.out.println("directions[" + i + "] = " + directions[i]);
             }
 
-            while (true) {
-                System.out.println("Current round: " + gc.round() + "with ms time left: " + gc.getTimeLeftMs());
-
-                //NEED TO FIX, DOESN"T ACCOUNT FOR MARS TARGET CHANGING
-                if (targetChanged) {
-                    updatePathfindingMap(target);
-                    targetChanged = false;
+            for (int i = 0; i < spreadPathfindingMapEarth.length; i++) {
+                for (int j = 0; j < spreadPathfindingMapEarth[0].length; j++) {
+                    if (spreadPathfindingMapEarth[i][j] == null){
+                        System.out.print("x");
+                    }
+                    else{
+                        System.out.print("0");
+                    }
                 }
+                System.out.println();
+            }
+
+
+
+            while (true) {
+                currentTurn = (int)gc.round();
+
+                System.out.println("Current round: " + currentTurn + " with ms time left: " + gc.getTimeLeftMs());
+
+                if (currentTurn == 50){
+                    target = new MapLocation(Planet.Earth, 1,1);
+                    spreadPathfindingMapEarth = updatePathfindingMap(target, earthMap);
+                    spreadPathfindingMapMars = updatePathfindingMap(target, marsMap);
+                }
+
 
                 // VecUnit is a class that you can think of as similar to ArrayList<Unit>, but immutable.
                 VecUnit units = gc.myUnits();
@@ -198,29 +220,20 @@ public class Player {
     }
 
     /**
-    @param myLocation assumes the target location is on the same planet as the planet currently being run
+    @param target assumes the target location is on the same planet as the planet currently being run
+     @param mapToUpdate pathfinding map to update
+     @param planetMap map of planet to create pathfinding for
      */
-    public static void updatePathfindingMap(MapLocation myLocation){
+    public static Direction[][] updatePathfindingMap(MapLocation target, PlanetMap planetMap){
         Direction[][] currentMap;
-        boolean isEarth;
-        if (gc.planet().equals(Planet.Earth)){
-            isEarth = true;
-        }
-        else{
-            isEarth = false;
-        }
+        Planet currentPlanet = planetMap.getPlanet();
 
-        if (isEarth){
-            currentMap = new Direction[spreadPathfindingMapEarth.length][spreadPathfindingMapEarth[0].length];
-        }
-        else{
-            currentMap = new Direction[spreadPathfindingMapMars.length][spreadPathfindingMapMars[0].length];
-        }
+        currentMap = new Direction[(int)planetMap.getHeight()][(int)planetMap.getWidth()];
 
         LinkedList<MapLocation> bfsQueue = new LinkedList<MapLocation>();
         MapLocation tempLocation;
         MapLocation currentBFSLocation;
-        bfsQueue.add(myLocation);
+        bfsQueue.add(target);
         while (bfsQueue.size() > 0){
             //gets first item in bfsQueue
             currentBFSLocation = bfsQueue.poll();
@@ -231,29 +244,16 @@ public class Player {
                         && (tempLocation.getX() >= 0 && tempLocation.getX() < currentMap[0].length)) {
                     //only runs calculation if that area of the pathfindingMap hasn't been filled in yet
                     if (getValueInPathfindingMap(tempLocation.getX(), tempLocation.getY(), currentMap) == null) {
-                        if (isEarth){
-                            if (earthMap.isPassableTerrainAt(new MapLocation(Planet.Earth, tempLocation.getX(), tempLocation.getY())) != 0) {
-                                bfsQueue.add(tempLocation);
-                                setValueInPathfindingMap(tempLocation.getX(), tempLocation.getY(), directions[i], currentMap);
-                            }
-                        }
-                        else{
-                            if (marsMap.isPassableTerrainAt(new MapLocation(Planet.Mars, tempLocation.getX(), tempLocation.getY())) != 0) {
-                                bfsQueue.add(tempLocation);
-                                setValueInPathfindingMap(tempLocation.getX(), tempLocation.getY(), directions[i], currentMap);
-                            }
+                        if (planetMap.isPassableTerrainAt(new MapLocation(currentPlanet, tempLocation.getX(), tempLocation.getY())) != 0) {
+                            bfsQueue.add(tempLocation);
+                            setValueInPathfindingMap(tempLocation.getX(), tempLocation.getY(), directions[i], currentMap);
                         }
                     }
                 }
             }
         }
 
-        if (isEarth){
-            spreadPathfindingMapEarth = currentMap;
-        }
-        else{
-            spreadPathfindingMapMars = currentMap;
-        }
+        return currentMap;
     }
 
     public static Direction getValueInPathfindingMap(int x, int y, Direction[][] map){

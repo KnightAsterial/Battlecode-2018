@@ -2,7 +2,6 @@
 * Right now I am working on a Breadth First Search pathfinding. However, this only deals with natural barriers and doesn't take into account units. Think of a way to deal with that.
 * More pressing issue: **we cannot deal with split maps using this single array pathfinding**
 * improve to ryanpathfinding1 so BFS can opperate for more than one target, different paths for different units, etc.
-* FIX PATHFINDING WHEN TO RUN, current won't take into account mars/earth targetChange (possibly make it so updatePathfindingMap takes a planet as an argument)
 
 ## Notes
 * If getting a "time out after 50 seconds -> killed" error, a solution isn't known yet but people recommend to reduce API calls and it seemed to help
