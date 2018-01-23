@@ -3,6 +3,7 @@
 import bc.*;
 
 import java.awt.*;
+import java.util.ArrayList;
 import java.util.LinkedList;
 
 public class Player {
@@ -49,20 +50,49 @@ public class Player {
         try {
             // Connect to the manager, starting the game. Initializing methods
             gc = new GameController();
+            //map stuff
             earthMap = gc.startingMap(Planet.Earth);
             marsMap = gc.startingMap(Planet.Mars);
             earthDimensions = new Dimension((int)earthMap.getWidth(), (int)earthMap.getHeight());
             marsDimensions = new Dimension((int)marsMap.getWidth(), (int)marsMap.getHeight());
+
             int currentTurn;
+
+            int numFactories = 0;
+            int numHealers = 0;
+            int numKnights = 0;
+            int numMages = 0;
+            int numRangers = 0;
+            int numRockets = 0;
+            int numWorkers = 0;
 
             MapLocation target;
             boolean hasTarget = false;
             target = new MapLocation(Planet.Earth, 10, 1);
             hasTarget = true;
 
+
+            //MACRO control variables
+            int maxWorkerNum = 8;
+            boolean karboniteCollectionStage = false;
+
+            //initial research queue
+            gc.queueResearch(UnitType.Ranger);
+            gc.queueResearch(UnitType.Ranger);
+            gc.queueResearch(UnitType.Ranger);
+
+
             //first turn code
             spreadPathfindingMapEarth = updatePathfindingMap(target, earthMap);
             spreadPathfindingMapMars = updatePathfindingMap(target, marsMap);
+            ArrayList<MapLocation> likelyEnemyStartingLocations = new ArrayList<MapLocation>();
+            VecUnit startingUnits = gc.myUnits();
+            for (int i = 0; i < startingUnits.size(); i++) {
+                Unit currentStartingUnit = startingUnits.get(i);
+                MapLocation currentStartingUnitLocation = currentStartingUnit.location().mapLocation();
+                likelyEnemyStartingLocations.add(new MapLocation(Planet.Earth, currentStartingUnitLocation.getY(), currentStartingUnitLocation.getX()));
+            }
+
 
             for (int i = 0; i < directions.length; i++) {
                 System.out.println("directions[" + i + "] = " + directions[i]);
@@ -87,18 +117,79 @@ public class Player {
 
                 System.out.println("Current round: " + currentTurn + " with ms time left: " + gc.getTimeLeftMs());
 
-                if (currentTurn == 50){
-                    target = new MapLocation(Planet.Earth, 1,1);
-                    spreadPathfindingMapEarth = updatePathfindingMap(target, earthMap);
-                    spreadPathfindingMapMars = updatePathfindingMap(target, marsMap);
-                }
-
-
                 // VecUnit is a class that you can think of as similar to ArrayList<Unit>, but immutable.
                 VecUnit units = gc.myUnits();
+
+                //resets counter
+                numFactories = 0;
+                numHealers = 0;
+                numKnights = 0;
+                numMages = 0;
+                numRangers = 0;
+                numRockets = 0;
+                numWorkers = 0;
+                //counts units
+                for (int i = 0; i < units.size(); i++){
+                    Unit unit = units.get(i);
+                    if (unit.unitType().equals(UnitType.Factory)){
+                        numFactories++;
+                    }
+                    else if (unit.unitType().equals(UnitType.Healer)){
+                        numHealers++;
+                    }
+                    else if (unit.unitType().equals(UnitType.Knight)){
+                        numKnights++;
+                    }
+                    else if (unit.unitType().equals(UnitType.Mage)){
+                        numMages++;
+                    }
+                    else if (unit.unitType().equals(UnitType.Ranger)){
+                        numRangers++;
+                    }
+                    else if (unit.unitType().equals(UnitType.Rocket)){
+                        numRockets++;
+                    }
+                    else if (unit.unitType().equals(UnitType.Worker)){
+                        numWorkers++;
+                    }
+                }
+
                 for (int i = 0; i < units.size(); i++) {
                     Unit unit = units.get(i);
                     // Most methods on gc take unit IDs, instead of the unit objects themselves.
+
+                    if (unit.unitType().equals(UnitType.Worker)){
+                        boolean hasPerformedAction = false;
+                        boolean shouldMove = true;
+
+                        //senses adjacent friendly within 2 tiles
+                        VecUnit unitsNearWorker = gc.senseNearbyUnitsByTeam(unit.location().mapLocation(), 8, gc.team());
+
+                        //if there is a blueprint to build, build it
+                        for (int index = 0; index < unitsNearWorker.size(); index++){
+                            Unit nearbyUnit = unitsNearWorker.get(index);
+                            if (gc.canBuild(unit.id(), nearbyUnit.id())){
+                                gc.build(unit.id(), nearbyUnit.id());
+                                hasPerformedAction = true;
+                                shouldMove = false;
+                                break;
+                            }
+                        }
+
+                        //replication loop (maxWorkerNum = 8 atm)
+                        if (numWorkers <= maxWorkerNum){
+                            for (int j = 0; j < 8; j++) {
+                                if (gc.canReplicate(unit.id(), directions[j])){
+                                    gc.replicate(unit.id(), directions[j]);
+                                    break;
+                                }
+                            }
+                        }
+
+
+
+                    }
+
                     if (gc.isMoveReady(unit.id())) {
                         moveAlongBFSPath(gc, unit);
                     }
