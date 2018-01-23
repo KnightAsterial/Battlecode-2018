@@ -2,6 +2,7 @@
 * Right now I am working on a Breadth First Search pathfinding. However, this only deals with natural barriers and doesn't take into account units. Think of a way to deal with that.
 * More pressing issue: **we cannot deal with split maps using this single array pathfinding** (NULL POINTER EXCEPTIONS ARE THROWN!!!!!!!)
 * improve to ryanpathfinding1 so BFS can opperate for more than one target, different paths for different units, etc.
+* Add walking via garrisoning to tryMove
 
 ## Notes
 * If getting a "time out after 50 seconds -> killed" error, a solution isn't known yet but people recommend to reduce API calls and it seemed to help

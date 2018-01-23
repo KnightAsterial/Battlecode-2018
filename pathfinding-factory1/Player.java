@@ -5,6 +5,7 @@ import bc.*;
 import java.awt.*;
 import java.util.ArrayList;
 import java.util.LinkedList;
+import java.util.Random;
 
 public class Player {
     // Direction is a normal java enum.
@@ -74,7 +75,10 @@ public class Player {
 
             //MACRO control variables
             int maxWorkerNum = 8;
+            int maxFactories = 5;
             boolean karboniteCollectionStage = false;
+            boolean enoughFactories = false;
+            UnitType unitTypeToProduce = UnitType.Ranger;
 
             //initial research queue
             gc.queueResearch(UnitType.Ranger);
@@ -90,7 +94,9 @@ public class Player {
             for (int i = 0; i < startingUnits.size(); i++) {
                 Unit currentStartingUnit = startingUnits.get(i);
                 MapLocation currentStartingUnitLocation = currentStartingUnit.location().mapLocation();
-                likelyEnemyStartingLocations.add(new MapLocation(Planet.Earth, currentStartingUnitLocation.getY(), currentStartingUnitLocation.getX()));
+                if (earthMap.isPassableTerrainAt(currentStartingUnitLocation) != 0) {
+                    likelyEnemyStartingLocations.add(new MapLocation(Planet.Earth, currentStartingUnitLocation.getY(), currentStartingUnitLocation.getX()));
+                }
             }
 
 
@@ -113,86 +119,190 @@ public class Player {
 
 
             while (true) {
-                currentTurn = (int)gc.round();
+                try {
+                    currentTurn = (int) gc.round();
 
-                System.out.println("Current round: " + currentTurn + " with ms time left: " + gc.getTimeLeftMs());
+                    System.out.println("Current round: " + currentTurn + " with ms time left: " + gc.getTimeLeftMs());
 
-                // VecUnit is a class that you can think of as similar to ArrayList<Unit>, but immutable.
-                VecUnit units = gc.myUnits();
 
-                //resets counter
-                numFactories = 0;
-                numHealers = 0;
-                numKnights = 0;
-                numMages = 0;
-                numRangers = 0;
-                numRockets = 0;
-                numWorkers = 0;
-                //counts units
-                for (int i = 0; i < units.size(); i++){
-                    Unit unit = units.get(i);
-                    if (unit.unitType().equals(UnitType.Factory)){
-                        numFactories++;
-                    }
-                    else if (unit.unitType().equals(UnitType.Healer)){
-                        numHealers++;
-                    }
-                    else if (unit.unitType().equals(UnitType.Knight)){
-                        numKnights++;
-                    }
-                    else if (unit.unitType().equals(UnitType.Mage)){
-                        numMages++;
-                    }
-                    else if (unit.unitType().equals(UnitType.Ranger)){
-                        numRangers++;
-                    }
-                    else if (unit.unitType().equals(UnitType.Rocket)){
-                        numRockets++;
-                    }
-                    else if (unit.unitType().equals(UnitType.Worker)){
-                        numWorkers++;
-                    }
-                }
 
-                for (int i = 0; i < units.size(); i++) {
-                    Unit unit = units.get(i);
-                    // Most methods on gc take unit IDs, instead of the unit objects themselves.
+                    // VecUnit is a class that you can think of as similar to ArrayList<Unit>, but immutable.
+                    VecUnit units = gc.myUnits();
 
-                    if (unit.unitType().equals(UnitType.Worker)){
-                        boolean hasPerformedAction = false;
-                        boolean shouldMove = true;
+                    //resets counter
+                    numFactories = 0;
+                    numHealers = 0;
+                    numKnights = 0;
+                    numMages = 0;
+                    numRangers = 0;
+                    numRockets = 0;
+                    numWorkers = 0;
+                    //counts units
+                    for (int i = 0; i < units.size(); i++) {
+                        Unit unit = units.get(i);
+                        if (unit.unitType().equals(UnitType.Factory)) {
+                            numFactories++;
+                        } else if (unit.unitType().equals(UnitType.Healer)) {
+                            numHealers++;
+                        } else if (unit.unitType().equals(UnitType.Knight)) {
+                            numKnights++;
+                        } else if (unit.unitType().equals(UnitType.Mage)) {
+                            numMages++;
+                        } else if (unit.unitType().equals(UnitType.Ranger)) {
+                            numRangers++;
+                        } else if (unit.unitType().equals(UnitType.Rocket)) {
+                            numRockets++;
+                        } else if (unit.unitType().equals(UnitType.Worker)) {
+                            numWorkers++;
+                        }
+                    }
 
-                        //senses adjacent friendly within 2 tiles
-                        VecUnit unitsNearWorker = gc.senseNearbyUnitsByTeam(unit.location().mapLocation(), 8, gc.team());
+                    //space for global / macro calculations
+                    if (numFactories < maxFactories){
+                        enoughFactories = false;
+                    }
+                    else{
+                        enoughFactories = true;
+                        karboniteCollectionStage = true;
+                    }
 
-                        //if there is a blueprint to build, build it
-                        for (int index = 0; index < unitsNearWorker.size(); index++){
-                            Unit nearbyUnit = unitsNearWorker.get(index);
-                            if (gc.canBuild(unit.id(), nearbyUnit.id())){
-                                gc.build(unit.id(), nearbyUnit.id());
-                                hasPerformedAction = true;
-                                shouldMove = false;
-                                break;
-                            }
+                    //unit loop
+                    for (int i = 0; i < units.size(); i++) {
+                        Unit unit = units.get(i);
+                        if (unit.location().isInGarrison() || unit.location().isInSpace()){
+                            continue;
                         }
 
-                        //replication loop (maxWorkerNum = 8 atm)
-                        if (numWorkers <= maxWorkerNum){
-                            for (int j = 0; j < 8; j++) {
-                                if (gc.canReplicate(unit.id(), directions[j])){
-                                    gc.replicate(unit.id(), directions[j]);
+                        MapLocation unitLocation = unit.location().mapLocation();
+                        // Most methods on gc take unit IDs, instead of the unit objects themselves.
+
+                        if (unit.unitType().equals(UnitType.Worker)) {
+                            boolean hasPerformedAction = false;
+                            boolean shouldMove = true;
+
+                            //senses adjacent friendly within 2 tiles
+                            VecUnit unitsNearWorker = gc.senseNearbyUnitsByTeam(unit.location().mapLocation(), 8, gc.team());
+
+                            //if there is a blueprint to build, build it
+                            for (int index = 0; index < unitsNearWorker.size(); index++) {
+                                Unit nearbyUnit = unitsNearWorker.get(index);
+                                if (gc.canBuild(unit.id(), nearbyUnit.id())) {
+                                    gc.build(unit.id(), nearbyUnit.id());
+                                    hasPerformedAction = true;
+                                    shouldMove = false;
                                     break;
                                 }
                             }
+
+                            //replication loop (maxWorkerNum = 8 atm)
+                            if (numWorkers <= maxWorkerNum) {
+                                for (int j = 0; j < 8; j++) {
+                                    if (gc.canReplicate(unit.id(), directions[j])) {
+                                        gc.replicate(unit.id(), directions[j]);
+                                        break;
+                                    }
+                                }
+                            }
+
+                            //blueprints a factory if not adjacent to any other factory
+                            if (!hasPerformedAction && !enoughFactories) {
+                                //only runs this if there is enough karbonite to build factory...
+                                if (gc.karbonite() > bc.bcUnitTypeBlueprintCost(UnitType.Factory)) {
+                                    //scan adjacent tiles
+                                    MapLocation testLocation = unit.location().mapLocation();
+                                    //tests tiles in all directions of worker
+                                    for (int directionIndex = 0; directionIndex < 8 && !hasPerformedAction; directionIndex++) {
+
+                                        boolean shouldBuildHere = true;
+                                        testLocation = unitLocation.add(directions[directionIndex]);
+                                        for (int x = 0; x < unitsNearWorker.size(); x++) {
+                                            if (unitsNearWorker.get(x).unitType().equals(UnitType.Factory)
+                                                    && unitsNearWorker.get(x).location().mapLocation().isAdjacentTo(testLocation)) {
+                                                //there is a factory adjacent, thus don't build
+                                                shouldBuildHere = false;
+                                                break;
+                                            }
+                                        }
+                                        if (shouldBuildHere) {
+                                            if (gc.canBlueprint(unit.id(), UnitType.Factory, directions[directionIndex])) {
+                                                gc.blueprint(unit.id(), UnitType.Factory, directions[directionIndex]);
+                                                hasPerformedAction = true;
+                                                shouldMove = false;
+                                            }
+                                        }
+
+                                    }
+                                }
+                            }
+
+                            //harvests karbonite from surroundings
+                            if (!hasPerformedAction){
+                                for (int j = 0; j < 9; j++) {
+                                    if (gc.canHarvest(unit.id(), directions[j])){
+                                        gc.harvest(unit.id(), directions[j]);
+                                        hasPerformedAction = true;
+                                        shouldMove = false;
+                                        break;
+                                    }
+                                }
+                            }
+
+                            if (shouldMove) {
+                                if(karboniteCollectionStage){
+                                    if(gc.isMoveReady(unit.id())) {
+                                        randomMove(gc, unit);
+                                    }
+                                }
+                                else{
+                                    if (gc.isMoveReady(unit.id())) {
+                                        moveAlongBFSPath(gc, unit);
+                                    }
+                                }
+
+                            }
                         }
 
 
+                        //knight loop
+                        else if (unit.unitType().equals(UnitType.Knight)) {
+
+                        }
+
+
+                        //mage loop
+                        else if (unit.unitType().equals(UnitType.Mage)) {
+
+                        }
+
+
+                        //ranger loop
+                        else if (unit.unitType().equals(UnitType.Ranger)) {
+                            if (gc.isMoveReady(unit.id())) {
+                                moveAlongBFSPath(gc, unit);
+                            }
+                        }
+
+                        //factory loop
+                        //(last to make sure anything that wants to move out of a garrison already did (otherwise always unloaded)
+                        //      spams units
+                        else if (unit.unitType().equals(UnitType.Factory)) {
+                            for (int j = 0; j < 8; j++) {
+                                if (gc.canUnload(unit.id(), directions[j])) {
+                                    gc.unload(unit.id(), directions[j]);
+                                    break;
+                                }
+                            }
+                            if (gc.canProduceRobot(unit.id(), unitTypeToProduce)) {
+                                gc.produceRobot(unit.id(), unitTypeToProduce);
+                            }
+                        }
+
 
                     }
-
-                    if (gc.isMoveReady(unit.id())) {
-                        moveAlongBFSPath(gc, unit);
-                    }
+                }
+                catch(Exception e){
+                    System.out.println("Exception in main while loop");
+                    e.printStackTrace();
                 }
                 // Submit the actions we've done, and wait for our next turn.
                 gc.nextTurn();
@@ -202,6 +312,11 @@ public class Player {
             System.out.println("Exception in main");
             e.printStackTrace();
         }
+    }
+
+    public static void randomMove(GameController gc, Unit unit){
+        Random rand = new Random();
+        tryMove(gc, unit, directions[rand.nextInt(8)]);
     }
 
     /**
