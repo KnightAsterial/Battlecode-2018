@@ -45,6 +45,9 @@ public class Player {
     public static PlanetMap earthMap;
     public static PlanetMap marsMap;
 
+    public static Team myTeam;
+    public static Team enemyTeam;
+
     public static GameController gc;
 
     public static void main(String[] args) {
@@ -56,6 +59,15 @@ public class Player {
             marsMap = gc.startingMap(Planet.Mars);
             earthDimensions = new Dimension((int)earthMap.getWidth(), (int)earthMap.getHeight());
             marsDimensions = new Dimension((int)marsMap.getWidth(), (int)marsMap.getHeight());
+
+            //team information
+            myTeam = gc.team();
+            if(Team.Blue.equals(myTeam)){
+                enemyTeam = Team.Red;
+            }
+            else{
+                enemyTeam = Team.Blue;
+            }
 
             int currentTurn;
 
@@ -177,7 +189,6 @@ public class Player {
                         // Most methods on gc take unit IDs, instead of the unit objects themselves.
 
                         if (unit.unitType().equals(UnitType.Worker)) {
-                            boolean hasPerformedAction = false;
                             boolean shouldMove = true;
 
                             //senses adjacent friendly within 2 tiles
@@ -188,7 +199,6 @@ public class Player {
                                 Unit nearbyUnit = unitsNearWorker.get(index);
                                 if (gc.canBuild(unit.id(), nearbyUnit.id())) {
                                     gc.build(unit.id(), nearbyUnit.id());
-                                    hasPerformedAction = true;
                                     shouldMove = false;
                                     break;
                                 }
@@ -205,13 +215,13 @@ public class Player {
                             }
 
                             //blueprints a factory if not adjacent to any other factory
-                            if (!hasPerformedAction && !enoughFactories) {
+                            if ((unit.workerHasActed() == 0) && !enoughFactories) {
                                 //only runs this if there is enough karbonite to build factory...
                                 if (gc.karbonite() > bc.bcUnitTypeBlueprintCost(UnitType.Factory)) {
                                     //scan adjacent tiles
                                     MapLocation testLocation = unit.location().mapLocation();
                                     //tests tiles in all directions of worker
-                                    for (int directionIndex = 0; directionIndex < 8 && !hasPerformedAction; directionIndex++) {
+                                    for (int directionIndex = 0; directionIndex < 8 && (unit.workerHasActed() == 0); directionIndex++) {
 
                                         boolean shouldBuildHere = true;
                                         testLocation = unitLocation.add(directions[directionIndex]);
@@ -226,7 +236,6 @@ public class Player {
                                         if (shouldBuildHere) {
                                             if (gc.canBlueprint(unit.id(), UnitType.Factory, directions[directionIndex])) {
                                                 gc.blueprint(unit.id(), UnitType.Factory, directions[directionIndex]);
-                                                hasPerformedAction = true;
                                                 shouldMove = false;
                                             }
                                         }
@@ -236,11 +245,10 @@ public class Player {
                             }
 
                             //harvests karbonite from surroundings
-                            if (!hasPerformedAction){
+                            if ((unit.workerHasActed() == 0)){
                                 for (int j = 0; j < 9; j++) {
                                     if (gc.canHarvest(unit.id(), directions[j])){
                                         gc.harvest(unit.id(), directions[j]);
-                                        hasPerformedAction = true;
                                         shouldMove = false;
                                         break;
                                     }
@@ -277,7 +285,61 @@ public class Player {
 
                         //ranger loop
                         else if (unit.unitType().equals(UnitType.Ranger)) {
-                            if (gc.isMoveReady(unit.id())) {
+                            VecUnit enemiesInFiringRange = gc.senseNearbyUnitsByTeam(unitLocation, 50, enemyTeam);
+                            boolean shouldMove = true;
+
+                            if (enemiesInFiringRange.size() > 0) {
+
+                                ArrayList<Unit> closestUnits = new ArrayList<Unit>();
+
+
+                                //attack sequence
+                                long minDistanceTo = unitLocation.distanceSquaredTo(enemiesInFiringRange.get(0).location().mapLocation());
+                                long tempDistanceSquaredTo_Holder;
+                                for (int j = 0; j < enemiesInFiringRange.size(); j++) {
+                                    tempDistanceSquaredTo_Holder = unitLocation.distanceSquaredTo(enemiesInFiringRange.get(j).location().mapLocation());
+                                    if (tempDistanceSquaredTo_Holder < minDistanceTo) {
+                                        minDistanceTo = tempDistanceSquaredTo_Holder;
+                                    }
+                                }
+                                for (int j = 0; j < enemiesInFiringRange.size(); j++) {
+                                    if (enemiesInFiringRange.get(j).location().mapLocation().distanceSquaredTo(unitLocation) == minDistanceTo) {
+                                        closestUnits.add(enemiesInFiringRange.get(j));
+                                    }
+                                }
+
+                                //firing priority: closest target. Among equally close targets, fire at one with lowest health
+                                Unit toFireAt = closestUnits.get(0);
+                                //kite priority, run from closest target. among equally close targets, run from one with highest health
+                                Unit toRunFrom = closestUnits.get(0);
+
+                                long minHealth = closestUnits.get(0).health();
+                                long maxHealth = closestUnits.get(0).health();
+                                for (Unit unitOfNearest : closestUnits) {
+                                    if (unitOfNearest.health() < minHealth) {
+                                        minHealth = unitOfNearest.health();
+                                        toFireAt = unitOfNearest;
+                                    }
+                                    if (unitOfNearest.health() > maxHealth){
+                                        maxHealth = unitOfNearest.health();
+                                        toRunFrom = unitOfNearest;
+                                    }
+                                }
+
+                                //attack
+                                if (gc.isAttackReady(unit.id())) {
+                                    if (gc.canAttack(unit.id(), toFireAt.id())) {
+                                        gc.attack(unit.id(), toFireAt.id());
+                                    }
+                                }
+
+                                //kite away from close enemies sequence
+                                if(gc.isMoveReady(unit.id())){
+                                    tryMove(gc, unit, toRunFrom.location().mapLocation().directionTo(unitLocation));
+                                }
+                            }
+
+                            if (shouldMove && gc.isMoveReady(unit.id())) {
                                 moveAlongBFSPath(gc, unit);
                             }
                         }
