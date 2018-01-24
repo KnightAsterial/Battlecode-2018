@@ -39,6 +39,7 @@ public class Player {
      */
     public static Direction[][] spreadPathfindingMapEarth;
     public static Direction[][] spreadPathfindingMapMars;
+    public static Direction[][] spreadPathfindingMapWorkers;
     public static Dimension earthDimensions;
     public static Dimension marsDimensions;
 
@@ -79,10 +80,8 @@ public class Player {
             int numRockets = 0;
             int numWorkers = 0;
 
-            MapLocation target;
-            boolean hasTarget = false;
-            target = new MapLocation(Planet.Earth, 10, 1);
-            hasTarget = true;
+
+
 
 
             //MACRO control variables
@@ -92,6 +91,21 @@ public class Player {
             boolean enoughFactories = false;
             UnitType unitTypeToProduce = UnitType.Ranger;
 
+            LinkedList<MapLocation> karboniteLocationQueueEarth = new LinkedList<>();
+            MapLocation currentKarboniteTargetLocation = null;
+
+            MapLocation target;
+            MapLocation initialEnemyLocation;
+            MapLocation initialWorkerLocation;
+            /**
+             * equals 0 if symmetrical over x axis
+             * equals 1 if symmetrical over y axis
+             * equal 2 if symmetrical by rotation
+             */
+            int earthSymmetry;
+            AsteroidPattern asteroidPattern;
+
+
             //initial research queue
             gc.queueResearch(UnitType.Ranger);
             gc.queueResearch(UnitType.Ranger);
@@ -99,23 +113,62 @@ public class Player {
 
 
             //first turn code
-            target = gc.myUnits().get(0).location().mapLocation();
+            if(isSymmetricalOverX(earthMap)){
+                earthSymmetry = 0;
+            }
+            else if(isSymmetricalOverY(earthMap)){
+                earthSymmetry = 1;
+            }
+            else{
+                earthSymmetry = 2;
+            }
 
-            spreadPathfindingMapEarth = updatePathfindingMap(target, earthMap);
-            spreadPathfindingMapMars = updatePathfindingMap(target, marsMap);
-            ArrayList<MapLocation> likelyEnemyStartingLocations = new ArrayList<MapLocation>();
-            VecUnit startingUnits = gc.myUnits();
-            for (int i = 0; i < startingUnits.size(); i++) {
-                Unit currentStartingUnit = startingUnits.get(i);
-                MapLocation currentStartingUnitLocation = currentStartingUnit.location().mapLocation();
-                if (earthMap.isPassableTerrainAt(currentStartingUnitLocation) != 0) {
-                    likelyEnemyStartingLocations.add(new MapLocation(Planet.Earth, currentStartingUnitLocation.getY(), currentStartingUnitLocation.getX()));
+
+            if(gc.planet() == Planet.Earth) {
+                //sets target to where first enemies are
+                VecUnit startingUnits = gc.myUnits();
+                MapLocation firstStartingUnitLocation = startingUnits.get(0).location().mapLocation();
+
+                //if symmetrical over x
+                if (earthSymmetry == 0){
+                    target = new MapLocation(Planet.Earth, 
+                                                firstStartingUnitLocation.getX(), 
+                                                (int)earthMap.getHeight()-1-firstStartingUnitLocation.getY());
                 }
+                //if symmetrical over y
+                else if (earthSymmetry == 1){
+                    target = new MapLocation(Planet.Earth,
+                            (int)earthMap.getWidth()-1-firstStartingUnitLocation.getX(),
+                            firstStartingUnitLocation.getY());
+                }
+                //if rotationally symmetrical
+                else{
+                    target = new MapLocation(Planet.Earth,
+                            (int)earthMap.getWidth()-1-firstStartingUnitLocation.getX(),
+                            (int)earthMap.getHeight()-1-firstStartingUnitLocation.getY());
+                }
+                initialEnemyLocation = target.clone();
+                initialWorkerLocation = firstStartingUnitLocation;
+                spreadPathfindingMapEarth = updatePathfindingMap(target, earthMap);
+                spreadPathfindingMapWorkers = updatePathfindingMap(initialWorkerLocation, earthMap);
+            }
+            //MARS FIRST TURN
+            else{
+                //temp thing for target
+                target = new MapLocation(Planet.Mars,0,0);
+                //sets target to where first asteroid hits
+                asteroidPattern = gc.asteroidPattern();
+                for (int i = 0; i < 1000; i++) {
+                    if(asteroidPattern.hasAsteroid(i)){
+                        target = asteroidPattern.asteroid(i).getLocation();
+                    }
+                }
+                spreadPathfindingMapMars = updatePathfindingMap(target, marsMap);
             }
 
 
 
-
+            /*
             for (int i = 0; i < directions.length; i++) {
                 System.out.println("directions[" + i + "] = " + directions[i]);
             }
@@ -131,6 +184,7 @@ public class Player {
                 }
                 System.out.println();
             }
+            */
 
 
 
@@ -180,6 +234,47 @@ public class Player {
                     else{
                         enoughFactories = true;
                         karboniteCollectionStage = true;
+                    }
+
+                    //updates queue for karbonite collection
+                    if(gc.round() % 100 == 60){
+                        if(gc.planet().equals(Planet.Earth)){
+                            karboniteLocationQueueEarth.clear();
+                            VecMapLocation allLocations = gc.allLocationsWithin(
+                                        new MapLocation(Planet.Earth, 0, 0), (long)( Math.pow(earthDimensions.width,2)+Math.pow(earthDimensions.height,2)) );
+                            System.out.println("# visible locations = " + allLocations.size());
+                            for (int i = 0; i < allLocations.size(); i++) {
+                                if(gc.canSenseLocation(allLocations.get(i)) && gc.karboniteAt(allLocations.get(i)) > 0){
+                                    karboniteLocationQueueEarth.add(allLocations.get(i));
+                                }
+                            }
+                            if(karboniteLocationQueueEarth.size() > 0){
+                                currentKarboniteTargetLocation = karboniteLocationQueueEarth.pop();
+                                spreadPathfindingMapWorkers = updatePathfindingMap(currentKarboniteTargetLocation, earthMap);
+                            }
+                        }
+                    }
+
+                    //--------------
+                    if (currentKarboniteTargetLocation != null) {
+                        System.out.println(currentKarboniteTargetLocation);
+                    }
+                    else{
+                        System.out.println("current karbonite location = null");
+                    }
+                    //------------------
+
+                    //updates worker pathfinding map and karbonite target
+                    if(currentKarboniteTargetLocation != null) {
+                        if (gc.canSenseLocation(currentKarboniteTargetLocation) && gc.karboniteAt(currentKarboniteTargetLocation)==0){
+                            if(karboniteLocationQueueEarth.size() > 0){
+                                currentKarboniteTargetLocation = karboniteLocationQueueEarth.pop();
+                                spreadPathfindingMapWorkers = updatePathfindingMap(currentKarboniteTargetLocation, earthMap);
+                            }
+                            else{
+                                currentKarboniteTargetLocation = null;
+                            }
+                        }
                     }
 
                     //unit loop
@@ -260,14 +355,27 @@ public class Player {
                             }
 
                             if (shouldMove) {
-                                if(karboniteCollectionStage){
+                                if(!enoughFactories){
                                     if(gc.isMoveReady(unit.id())) {
                                         randomMove(gc, unit);
                                     }
                                 }
                                 else{
                                     if (gc.isMoveReady(unit.id())) {
-                                        moveAlongBFSPath(gc, unit);
+                                        if(Planet.Earth.equals(gc.planet())){
+                                            if(currentKarboniteTargetLocation != null){
+                                                //right now if worker cannot reach the tile, it will resort to randomMove
+                                                //possible fix, create a bunch of targets amd targetPathfindingMaps,
+                                                //each worker moves towards the closest one / the one it can reach
+                                                moveAlongBFSPath(gc, unit, spreadPathfindingMapWorkers);
+                                            }
+                                            else{
+                                                randomMove(gc, unit);
+                                            }
+                                        }
+                                        else{
+                                            moveAlongBFSPath(gc, unit, spreadPathfindingMapMars);
+                                        }
                                     }
                                 }
 
@@ -344,8 +452,13 @@ public class Player {
                             }
 
                             if (shouldMove && gc.isMoveReady(unit.id())) {
-                                if(gc.round() < 100) {
-                                    moveAlongBFSPath(gc, unit);
+                                if(gc.round() < 1000) {
+                                    if(Planet.Earth.equals(gc.planet())){
+                                        moveAlongBFSPath(gc, unit, spreadPathfindingMapEarth);
+                                    }
+                                    else{
+                                        moveAlongBFSPath(gc, unit, spreadPathfindingMapMars);
+                                    }
                                 }
                                 else{
                                     randomMove(gc, unit);
@@ -363,8 +476,10 @@ public class Player {
                                     break;
                                 }
                             }
-                            if (gc.canProduceRobot(unit.id(), unitTypeToProduce)) {
-                                gc.produceRobot(unit.id(), unitTypeToProduce);
+                            if( enoughFactories || (gc.karbonite() > (bc.bcUnitTypeBlueprintCost(UnitType.Factory)+200) ) ) {
+                                if (gc.canProduceRobot(unit.id(), unitTypeToProduce)) {
+                                    gc.produceRobot(unit.id(), unitTypeToProduce);
+                                }
                             }
                         }
 
@@ -483,17 +598,18 @@ public class Player {
 
     }
 
-    public static void moveAlongBFSPath(GameController gc, Unit unit){
-        MapLocation unitLocation = unit.location().mapLocation();
-        Direction directionToMove;
-        if (gc.planet().equals(Planet.Earth)){
-            directionToMove = bc.bcDirectionOpposite(getValueInPathfindingMap(unitLocation.getX(), unitLocation.getY(), spreadPathfindingMapEarth));
-        }
-        else{
-            directionToMove = bc.bcDirectionOpposite(getValueInPathfindingMap(unitLocation.getX(), unitLocation.getY(), spreadPathfindingMapMars));
-        }
+    public static void moveAlongBFSPath(GameController gc, Unit unit, Direction[][] map){
+        try {
+            MapLocation unitLocation = unit.location().mapLocation();
+            Direction directionToMove;
+            directionToMove = bc.bcDirectionOpposite(getValueInPathfindingMap(unitLocation.getX(), unitLocation.getY(), map));
 
-        tryMove(gc, unit, directionToMove);
+            tryMove(gc, unit, directionToMove);
+        }
+        catch(Exception e){
+            System.out.println("BFS move failed on unit: " + unit);
+            randomMove(gc, unit);
+        }
     }
 
     /**
@@ -541,5 +657,40 @@ public class Player {
     public static void setValueInPathfindingMap(int x, int y, Direction myDirection, Direction[][] map){
         map[map.length-1-y][x] = myDirection;
     }
+
+    public static boolean isSymmetricalOverY(PlanetMap map){
+        MapLocation toTest = new MapLocation(map.getPlanet(), 0,0);
+        MapLocation opposite = new MapLocation(map.getPlanet(), 0 ,0);
+        for (int i = 0; i < map.getWidth()/2; i++) {
+            toTest.setX(i);
+            opposite.setX((int)(map.getWidth()-1-i));
+            for (int j = 0; j < map.getHeight(); j++) {
+                toTest.setY(j);
+                opposite.setY(j);
+                if( !(map.isPassableTerrainAt(toTest) == map.isPassableTerrainAt(opposite)) ){
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    public static boolean isSymmetricalOverX(PlanetMap map){
+        MapLocation toTest = new MapLocation(map.getPlanet(), 0,0);
+        MapLocation opposite = new MapLocation(map.getPlanet(), 0 ,0);
+        for (int i = 0; i < map.getHeight()/2; i++) {
+            toTest.setY(i);
+            opposite.setY((int)(map.getHeight()-1-i));
+            for (int j = 0; j < map.getWidth(); j++) {
+                toTest.setX(j);
+                opposite.setX(j);
+                if( !(map.isPassableTerrainAt(toTest) == map.isPassableTerrainAt(opposite)) ){
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
 
 }

@@ -3,6 +3,8 @@
 * More pressing issue: **we cannot deal with split maps using this single array pathfinding** (NULL POINTER EXCEPTIONS ARE THROWN!!!!!!!)
 * improve to ryanpathfinding1 so BFS can opperate for more than one target, different paths for different units, etc.
 * Add walking via garrisoning to tryMove
+* **right now if worker cannot reach the tile, it will resort to randomMove. possible fix: create a bunch of targets amd targetPathfindingMaps, each worker moves towards the closest one / the one it can reach**
+* deal with maps that are split both vertically and horizontally (basically if no enemies are visible spread and hunt down enemies)
 
 ## Notes
 * If getting a "time out after 50 seconds -> killed" error, a solution isn't known yet but people recommend to reduce API calls and it seemed to help
