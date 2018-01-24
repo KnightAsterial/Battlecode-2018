@@ -99,6 +99,8 @@ public class Player {
 
 
             //first turn code
+            target = gc.myUnits().get(0).location().mapLocation();
+
             spreadPathfindingMapEarth = updatePathfindingMap(target, earthMap);
             spreadPathfindingMapMars = updatePathfindingMap(target, marsMap);
             ArrayList<MapLocation> likelyEnemyStartingLocations = new ArrayList<MapLocation>();
@@ -110,6 +112,8 @@ public class Player {
                     likelyEnemyStartingLocations.add(new MapLocation(Planet.Earth, currentStartingUnitLocation.getY(), currentStartingUnitLocation.getX()));
                 }
             }
+
+
 
 
             for (int i = 0; i < directions.length; i++) {
@@ -340,7 +344,12 @@ public class Player {
                             }
 
                             if (shouldMove && gc.isMoveReady(unit.id())) {
-                                moveAlongBFSPath(gc, unit);
+                                if(gc.round() < 100) {
+                                    moveAlongBFSPath(gc, unit);
+                                }
+                                else{
+                                    randomMove(gc, unit);
+                                }
                             }
                         }
 
