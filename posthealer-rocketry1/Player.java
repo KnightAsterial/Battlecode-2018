@@ -50,6 +50,8 @@ public class Player {
 
     public static GameController gc;
 
+    public static Random rand = new Random();
+
     public static void main(String[] args) {
         try {
             // Connect to the manager, starting the game. Initializing methods
@@ -103,8 +105,16 @@ public class Player {
             int earthSymmetry;
             AsteroidPattern asteroidPattern;
 
+            boolean escapeToMarsMode = false;
+            HashMap<MapLocation, Direction[][]> rocketsOnEarthLocations = new HashMap<MapLocation, Direction[][]>();
+
+            LinkedList<MapLocation> passableLocationsOnMars = new LinkedList<MapLocation>();
+
 
             //initial research queue
+            //FORTESTINGPURPOSES
+            gc.queueResearch(UnitType.Rocket);
+
             gc.queueResearch(UnitType.Worker);
             gc.queueResearch(UnitType.Ranger);
             gc.queueResearch(UnitType.Healer);
@@ -168,6 +178,19 @@ public class Player {
                     }
                 }
                 spreadPathfindingMapMars = updatePathfindingMap(target, marsMap);
+
+
+            }
+
+            MapLocation locationForTestingPassableTerrain = new MapLocation(Planet.Mars, 1,1);
+            for (int i = 0; i < marsDimensions.width; i++) {
+                for (int j = 0; j < marsDimensions.height; j++) {
+                    locationForTestingPassableTerrain.setX(i);
+                    locationForTestingPassableTerrain.setY(j);
+                    if(marsMap.isPassableTerrainAt(locationForTestingPassableTerrain) != 0){
+                        passableLocationsOnMars.add(locationForTestingPassableTerrain.clone());
+                    }
+                }
             }
 
 
@@ -239,6 +262,9 @@ public class Player {
                     else{
                         enoughFactories = false;
                     }
+                    if (gc.round() > 650){
+                        escapeToMarsMode = true;
+                    }
 
                     //updates queue for karbonite collection
                     if(gc.round() % 100 == 60){
@@ -285,6 +311,12 @@ public class Player {
 
                             //senses adjacent friendly within 2 tiles
                             VecUnit unitsNearWorker = gc.senseNearbyUnitsByTeam(unit.location().mapLocation(), 8, gc.team());
+                            ArrayList<Unit> unitsAdjacentToWorker = new ArrayList<Unit>();
+                            for (int j = 0; j < unitsNearWorker.size(); j++) {
+                                if(unitLocation.distanceSquaredTo(unitsNearWorker.get(j).location().mapLocation()) <= 2){
+                                    unitsAdjacentToWorker.add(unitsNearWorker.get(j));
+                                }
+                            }
 
                             //if there is a blueprint to build, build it
                             for (int index = 0; index < unitsNearWorker.size(); index++) {
@@ -296,33 +328,70 @@ public class Player {
                                 }
                             }
 
-
-                            //blueprints a factory if not adjacent to any other factory
-                            if ((unit.workerHasActed() == 0) && !enoughFactories) {
-                                //only runs this if there is enough karbonite to build factory...
-                                if (gc.karbonite() > bc.bcUnitTypeBlueprintCost(UnitType.Factory)) {
-                                    //scan adjacent tiles
-                                    MapLocation testLocation = unit.location().mapLocation();
-                                    //tests tiles in all directions of worker
-                                    for (int directionIndex = 0; directionIndex < 8 && (unit.workerHasActed() == 0); directionIndex++) {
-
-                                        boolean shouldBuildHere = true;
-                                        testLocation = unitLocation.add(directions[directionIndex]);
-                                        for (int x = 0; x < unitsNearWorker.size(); x++) {
-                                            if (unitsNearWorker.get(x).unitType().equals(UnitType.Factory)
-                                                    && unitsNearWorker.get(x).location().mapLocation().isAdjacentTo(testLocation)) {
-                                                //there is a factory adjacent, thus don't build
-                                                shouldBuildHere = false;
+                            //blueprinting loop
+                            if(gc.planet().equals(Planet.Earth)) {
+                                if (escapeToMarsMode) {
+                                    if (gc.karbonite() > bc.bcUnitTypeBlueprintCost(UnitType.Rocket)) {
+                                        boolean hasBlueprinted = false;
+                                        for (int j = 0; j < 8; j++) {
+                                            if (gc.canBlueprint(unit.id(), UnitType.Rocket, directions[j])) {
+                                                gc.blueprint(unit.id(), UnitType.Rocket, directions[j]);
+                                                rocketsOnEarthLocations.put(unitLocation.add(directions[j]), updatePathfindingMap(unitLocation.add(directions[j]), earthMap));
+                                                hasBlueprinted = true;
+                                                shouldMove = false;
                                                 break;
                                             }
                                         }
-                                        if (shouldBuildHere) {
-                                            if (gc.canBlueprint(unit.id(), UnitType.Factory, directions[directionIndex])) {
-                                                gc.blueprint(unit.id(), UnitType.Factory, directions[directionIndex]);
-                                                shouldMove = false;
+                                        if (!hasBlueprinted) {
+                                            MapLocation tempLocationForBlueprinting;
+                                            Unit tempUnitForTesting;
+                                            for (int j = 0; j < 8; j++) {
+                                                tempLocationForBlueprinting = unitLocation.add(directions[j]);
+                                                if (gc.hasUnitAtLocation(tempLocationForBlueprinting)) {
+                                                    tempUnitForTesting = gc.senseUnitAtLocation(tempLocationForBlueprinting);
+                                                    if (tempUnitForTesting.team().equals(myTeam) && !tempUnitForTesting.unitType().equals(UnitType.Worker) && !tempUnitForTesting.unitType().equals(UnitType.Factory)
+                                                            && !tempUnitForTesting.unitType().equals(UnitType.Rocket)) {
+                                                        gc.disintegrateUnit(tempUnitForTesting.id());
+                                                        if (gc.canBlueprint(unit.id(), UnitType.Rocket, directions[j])) {
+                                                            gc.blueprint(unit.id(), UnitType.Rocket, directions[j]);
+                                                            shouldMove = false;
+                                                            break;
+                                                        }
+                                                    }
+                                                }
                                             }
                                         }
+                                    }
+                                }
 
+
+                                //blueprints a factory if not adjacent to any other factory
+                                else if ((unit.workerHasActed() == 0) && !enoughFactories) {
+                                    //only runs this if there is enough karbonite to build factory...
+                                    if (gc.karbonite() > bc.bcUnitTypeBlueprintCost(UnitType.Factory)) {
+                                        //scan adjacent tiles
+                                        MapLocation testLocation = unit.location().mapLocation();
+                                        //tests tiles in all directions of worker
+                                        for (int directionIndex = 0; directionIndex < 8 && (unit.workerHasActed() == 0); directionIndex++) {
+
+                                            boolean shouldBuildHere = true;
+                                            testLocation = unitLocation.add(directions[directionIndex]);
+                                            for (int x = 0; x < unitsNearWorker.size(); x++) {
+                                                if (unitsNearWorker.get(x).unitType().equals(UnitType.Factory)
+                                                        && unitsNearWorker.get(x).location().mapLocation().isAdjacentTo(testLocation)) {
+                                                    //there is a factory adjacent, thus don't build
+                                                    shouldBuildHere = false;
+                                                    break;
+                                                }
+                                            }
+                                            if (shouldBuildHere) {
+                                                if (gc.canBlueprint(unit.id(), UnitType.Factory, directions[directionIndex])) {
+                                                    gc.blueprint(unit.id(), UnitType.Factory, directions[directionIndex]);
+                                                    shouldMove = false;
+                                                }
+                                            }
+
+                                        }
                                     }
                                 }
                             }
@@ -348,8 +417,34 @@ public class Player {
                                 }
                             }
 
-                            if (shouldMove) {
-                                if(!enoughFactories){
+                            if (shouldMove && gc.isMoveReady(unit.id())) {
+                                if(escapeToMarsMode && gc.planet().equals(Planet.Earth)){
+                                    boolean adjacentToRocket = false;
+                                    for (Unit unitNearWorker : unitsAdjacentToWorker) {
+                                        if(unitNearWorker.unitType().equals(UnitType.Rocket)){
+                                            adjacentToRocket = true;
+                                        }
+                                    }
+                                    if(!adjacentToRocket) {
+                                        ArrayList<MapLocation> rocketLocations = new ArrayList<MapLocation>();
+                                        rocketLocations.addAll(rocketsOnEarthLocations.keySet());
+                                        if(rocketLocations.size() > 0) {
+                                            MapLocation toMoveTo = rocketLocations.get(0);
+                                            long closestDistance = unitLocation.distanceSquaredTo(toMoveTo);
+                                            for (MapLocation location : rocketLocations) {
+                                                if (unitLocation.distanceSquaredTo(location) < closestDistance) {
+                                                    toMoveTo = location;
+                                                    closestDistance = unitLocation.distanceSquaredTo(location);
+                                                }
+                                            }
+                                            moveAlongBFSPath(gc, unit, rocketsOnEarthLocations.get(toMoveTo));
+                                        }
+                                        else{
+                                            randomMove(gc, unit);
+                                        }
+                                    }
+                                }
+                                else if(!enoughFactories){
                                     if(gc.isMoveReady(unit.id())) {
                                         randomMove(gc, unit);
                                     }
@@ -448,17 +543,43 @@ public class Player {
                             }
 
                             if (gc.isMoveReady(unit.id())) {
-                                if(gc.round() < 1000) {
-                                    if(Planet.Earth.equals(gc.planet())){
-                                        moveAlongBFSPath(gc, unit, spreadPathfindingMapEarth);
+                                if(Planet.Earth.equals(gc.planet())){
+                                    if(escapeToMarsMode){
+                                        boolean adjacentToRocket = false;
+                                        VecUnit adjacentUnits = gc.senseNearbyUnitsByTeam(unitLocation, 2, myTeam);
+                                        for (int j = 0; j < adjacentUnits.size(); j++) {
+                                            if(adjacentUnits.get(j).unitType().equals(UnitType.Rocket)){
+                                                adjacentToRocket = true;
+                                                break;
+                                            }
+                                        }
+                                        if(!adjacentToRocket) {
+                                            ArrayList<MapLocation> rocketLocations = new ArrayList<MapLocation>();
+                                            rocketLocations.addAll(rocketsOnEarthLocations.keySet());
+                                            if(rocketLocations.size() > 0) {
+                                                MapLocation toMoveTo = rocketLocations.get(0);
+                                                long closestDistance = unitLocation.distanceSquaredTo(toMoveTo);
+                                                for (MapLocation location : rocketLocations) {
+                                                    if (unitLocation.distanceSquaredTo(location) < closestDistance) {
+                                                        toMoveTo = location;
+                                                        closestDistance = unitLocation.distanceSquaredTo(location);
+                                                    }
+                                                }
+                                                moveAlongBFSPath(gc, unit, rocketsOnEarthLocations.get(toMoveTo));
+                                            }
+                                            else{
+                                                randomMove(gc, unit);
+                                            }
+                                        }
                                     }
-                                    else{
-                                        moveAlongBFSPath(gc, unit, spreadPathfindingMapMars);
+                                    else {
+                                        moveAlongBFSPath(gc, unit, spreadPathfindingMapEarth);
                                     }
                                 }
                                 else{
-                                    randomMove(gc, unit);
+                                    moveAlongBFSPath(gc, unit, spreadPathfindingMapMars);
                                 }
+
                             }
 
                         }
@@ -478,7 +599,6 @@ public class Player {
                         //ranger loop
                         else if (unit.unitType().equals(UnitType.Ranger)) {
                             VecUnit enemiesInFiringRange = gc.senseNearbyUnitsByTeam(unitLocation, 50, enemyTeam);
-                            boolean shouldMove = true;
 
                             if (enemiesInFiringRange.size() > 0) {
 
@@ -521,7 +641,7 @@ public class Player {
                                 //attack
                                 if (gc.isAttackReady(unit.id())) {
                                     if (gc.canAttack(unit.id(), toFireAt.id())) {
-                                        gc.attack(unit.id(), toFireAt.id());
+                                        //gc.attack(unit.id(), toFireAt.id());
                                     }
                                 }
 
@@ -531,18 +651,44 @@ public class Player {
                                 }
                             }
 
-                            if (shouldMove && gc.isMoveReady(unit.id())) {
-                                if(gc.round() < 1000) {
-                                    if(Planet.Earth.equals(gc.planet())){
-                                        moveAlongBFSPath(gc, unit, spreadPathfindingMapEarth);
+                            if (gc.isMoveReady(unit.id())) {
+                                if(Planet.Earth.equals(gc.planet())){
+                                    if(escapeToMarsMode){
+                                        boolean adjacentToRocket = false;
+                                        VecUnit adjacentUnits = gc.senseNearbyUnitsByTeam(unitLocation, 2, myTeam);
+                                        for (int j = 0; j < adjacentUnits.size(); j++) {
+                                            if(adjacentUnits.get(j).unitType().equals(UnitType.Rocket)){
+                                                adjacentToRocket = true;
+                                                break;
+                                            }
+                                        }
+                                        if(!adjacentToRocket) {
+                                            ArrayList<MapLocation> rocketLocations = new ArrayList<MapLocation>();
+                                            rocketLocations.addAll(rocketsOnEarthLocations.keySet());
+                                            if(rocketLocations.size() > 0) {
+                                                MapLocation toMoveTo = rocketLocations.get(0);
+                                                long closestDistance = unitLocation.distanceSquaredTo(toMoveTo);
+                                                for (MapLocation location : rocketLocations) {
+                                                    if (unitLocation.distanceSquaredTo(location) < closestDistance) {
+                                                        toMoveTo = location;
+                                                        closestDistance = unitLocation.distanceSquaredTo(location);
+                                                    }
+                                                }
+                                                moveAlongBFSPath(gc, unit, rocketsOnEarthLocations.get(toMoveTo));
+                                            }
+                                            else{
+                                                randomMove(gc, unit);
+                                            }
+                                        }
                                     }
-                                    else{
-                                        moveAlongBFSPath(gc, unit, spreadPathfindingMapMars);
+                                    else {
+                                        moveAlongBFSPath(gc, unit, spreadPathfindingMapEarth);
                                     }
                                 }
                                 else{
-                                    randomMove(gc, unit);
+                                    moveAlongBFSPath(gc, unit, spreadPathfindingMapMars);
                                 }
+
                             }
                         }
 
@@ -556,7 +702,7 @@ public class Player {
                                     break;
                                 }
                             }
-                            if(numWorkers < 1){
+                            if(numWorkers < 1 || escapeToMarsMode){
                                 unitTypeToProduce = UnitType.Worker;
                             }
                             else if (numHealers*3 < numRangers){
@@ -566,9 +712,59 @@ public class Player {
                                 unitTypeToProduce = UnitType.Ranger;
                             }
 
-                            if( enoughFactories || (gc.karbonite() > (bc.bcUnitTypeBlueprintCost(UnitType.Factory)+200) ) ) {
+                            if(escapeToMarsMode){
+                                if(gc.karbonite() > (bc.bcUnitTypeBlueprintCost(UnitType.Rocket)+100)){
+                                    if (gc.canProduceRobot(unit.id(), unitTypeToProduce)) {
+                                        gc.produceRobot(unit.id(), unitTypeToProduce);
+                                    }
+                                }
+                            }
+                            else if ( enoughFactories || (gc.karbonite() > (bc.bcUnitTypeBlueprintCost(UnitType.Factory)+200) ) ) {
                                 if (gc.canProduceRobot(unit.id(), unitTypeToProduce)) {
                                     gc.produceRobot(unit.id(), unitTypeToProduce);
+                                }
+                            }
+                        }
+
+                        //rocket loop
+                        else if (unit.unitType().equals(UnitType.Rocket)){
+                            VecUnitID unitsInRocket = unit.structureGarrison();
+                            System.out.println("unit.id: " + unit.id() + " #in: " + unitsInRocket.size() + " " + unitLocation);
+                            if(gc.planet().equals(Planet.Earth)){
+                                if(unitsInRocket.size() == unit.structureMaxCapacity() || gc.round() > 750){
+                                    MapLocation launchTarget = passableLocationsOnMars.get(rand.nextInt(passableLocationsOnMars.size()));
+                                    if(gc.canLaunchRocket(unit.id(), launchTarget)){
+                                        gc.launchRocket(unit.id(), launchTarget);
+                                        rocketsOnEarthLocations.remove(unitLocation);
+                                    }
+                                }
+                                else{
+                                    Unit unitToLoad;
+                                    for (int j = 0; j < 8; j++) {
+                                        if(unitsInRocket.size() < unit.structureMaxCapacity()){
+                                            if(gc.hasUnitAtLocation(unitLocation.add(directions[j]))){
+                                                unitToLoad = gc.senseUnitAtLocation(unitLocation.add(directions[j]));
+                                                if(unitToLoad.team().equals(myTeam) && gc.canLoad(unit.id(), unitToLoad.id())){
+                                                    gc.load(unit.id(), unitToLoad.id());
+                                                }
+                                            }
+                                        }
+                                        else{
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                            else{
+                                if(unitsInRocket.size() > 0){
+                                    for (int j = 0; j < 8; j++) {
+                                        if(gc.canUnload(unit.id(), directions[j])){
+                                            gc.unload(unit.id(), directions[j]);
+                                            if(unitsInRocket.size() > 0){
+                                                break;
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -591,7 +787,6 @@ public class Player {
     }
 
     public static void randomMove(GameController gc, Unit unit){
-        Random rand = new Random();
         tryMove(gc, unit, directions[rand.nextInt(8)]);
     }
 

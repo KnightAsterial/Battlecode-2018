@@ -3,8 +3,8 @@
 * More pressing issue: **we cannot deal with split maps using this single array pathfinding** (NULL POINTER EXCEPTIONS ARE THROWN!!!!!!!)
 * improve to ryanpathfinding1 so BFS can opperate for more than one target, different paths for different units, etc.
 * Add walking via garrisoning to tryMove
-* **right now if worker cannot reach the tile, it will resort to randomMove. possible fix: create a bunch of targets amd targetPathfindingMaps, each worker moves towards the closest one / the one it can reach**
 * deal with maps that are split both vertically and horizontally (basically if no enemies are visible spread and hunt down enemies)
+* **PLANETMAP HAS INITIAL UNIT LOCATIONS, CAN USE THAT TO ESTIMATE ENEMY POSITION**
 
 ## Notes
 * If getting a "time out after 50 seconds -> killed" error, a solution isn't known yet but people recommend to reduce API calls and it seemed to help
@@ -13,6 +13,8 @@
 * apparently the top sprint team used A*
 
 * first turn map analysis: run BFS on enemy location (we know its symmetrical to our starting location) and if any of our positions are a null on the map, we know the opponent is unreachable (walled off);
+
+* possibly want until troop number is greater than some threshold before moving towards enemy?
 
 
 # Scaffold for Battlecode 2018
