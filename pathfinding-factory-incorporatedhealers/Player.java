@@ -385,59 +385,69 @@ public class Player {
 
                         //healer loop
                         else if (unit.unitType().equals(UnitType.Healer)) {
-                            VecUnit enemiesInFiringRange = gc.senseNearbyUnitsByTeam(unitLocation, 70, enemyTeam);
-                            VecUnit friendliesInFiringRange = gc.senseNearbyUnitsByTeam(unitLocation, 30, myTeam);
-                            boolean shouldMove = true;
+                            //heal sequence: if heal is possible, heal the lowest health target
+                            if(gc.isHealReady(unit.id())) {
+                                VecUnit friendliesInFiringRange = gc.senseNearbyUnitsByTeam(unitLocation, 30, myTeam);
 
-                            if (enemiesInFiringRange.size() > 0) {
-                                ArrayList<Unit> closestUnitsF = new ArrayList<Unit>();
-
-                                //finding friendly sequence
-                                long minDistanceToF = unitLocation.distanceSquaredTo(friendliesInFiringRange.get(0).location().mapLocation());
-                                long tempDistanceSquaredTo_HolderF;
-                                for (int j = 0; j < friendliesInFiringRange.size(); j++) {
-                                    tempDistanceSquaredTo_HolderF = unitLocation.distanceSquaredTo(friendliesInFiringRange.get(j).location().mapLocation());
-                                    if (tempDistanceSquaredTo_HolderF < minDistanceToF) {
-                                        minDistanceToF = tempDistanceSquaredTo_HolderF;
+                                if (friendliesInFiringRange.size() > 0) {
+                                    //healing priority: heal the one with the lowest health
+                                    Unit toHealAt = friendliesInFiringRange.get(0);
+                                    double minPercentHealth = (double)toHealAt.health() / (double)toHealAt.maxHealth();
+                                    //finds the lowest health friendly to heal
+                                    for (int j = 0; j < friendliesInFiringRange.size(); j++) {
+                                        if( ((double)friendliesInFiringRange.get(j).health()/(double)friendliesInFiringRange.get(j).maxHealth()) < minPercentHealth){
+                                            toHealAt = friendliesInFiringRange.get(j);
+                                            minPercentHealth = (double)toHealAt.health() / (double)toHealAt.maxHealth();
+                                        }
                                     }
-                                }
-                                for (int j = 0; j < friendliesInFiringRange.size(); j++) {
-                                    if (friendliesInFiringRange.get(j).location().mapLocation().distanceSquaredTo(unitLocation) == minDistanceToF) {
-                                        closestUnitsF.add(friendliesInFiringRange.get(j));
-                                    }
-                                }
 
-                                //firing priority: closest target. Among equally close targets, fire at one with lowest health
-                                Unit toHealAt = closestUnitsF.get(0);
-                                //kite priority, run from closest target. among equally close targets, run from one with highest health
-                                Unit toRunTo = closestUnitsF.get(0);
-
-                                long minHealth = closestUnitsF.get(0).health();
-
-                                //finds the lowest health friendly to heal
-                                for (Unit unitOfNearest : closestUnitsF) {
-                                    if (unitOfNearest.health() < minHealth) {
-                                        minHealth = unitOfNearest.health();
-                                        toHealAt = unitOfNearest;
-                                        toRunTo = unitOfNearest;
-                                    }
-                                }
-
-                                //heal
-                                if (gc.isHealReady(unit.id())) {
+                                    //heal (already checked for isHealReady){
                                     if (gc.canHeal(unit.id(), toHealAt.id())) {
                                         gc.heal(unit.id(), toHealAt.id());
                                     }
                                 }
+                            }
 
-                                //tries to stay with rangers/allies
-                                if(gc.isMoveReady(unit.id())){
-                                    tryMove(gc, unit, toRunTo.location().mapLocation().directionTo(unitLocation));
+                            //kite sequence: run away from the closest enemy and among those, the one with the highest health (greater radius than rangers)
+                            if(gc.isMoveReady(unit.id())) {
+                                VecUnit enemiesInFiringRange = gc.senseNearbyUnitsByTeam(unitLocation, 82, enemyTeam);
+
+                                if (enemiesInFiringRange.size() > 0) {
+                                    ArrayList<Unit> closestUnits = new ArrayList<Unit>();
+
+
+                                    //attack sequence
+                                    long minDistanceTo = unitLocation.distanceSquaredTo(enemiesInFiringRange.get(0).location().mapLocation());
+                                    long tempDistanceSquaredTo_Holder;
+                                    for (int j = 0; j < enemiesInFiringRange.size(); j++) {
+                                        tempDistanceSquaredTo_Holder = unitLocation.distanceSquaredTo(enemiesInFiringRange.get(j).location().mapLocation());
+                                        if (tempDistanceSquaredTo_Holder < minDistanceTo) {
+                                            minDistanceTo = tempDistanceSquaredTo_Holder;
+                                        }
+                                    }
+                                    for (int j = 0; j < enemiesInFiringRange.size(); j++) {
+                                        if (enemiesInFiringRange.get(j).location().mapLocation().distanceSquaredTo(unitLocation) == minDistanceTo) {
+                                            closestUnits.add(enemiesInFiringRange.get(j));
+                                        }
+                                    }
+
+                                    Unit toRunFrom = closestUnits.get(0);
+                                    long maxHealth = closestUnits.get(0).health();
+                                    for (Unit unitOfNearest : closestUnits) {
+                                        if (unitOfNearest.health() > maxHealth){
+                                            maxHealth = unitOfNearest.health();
+                                            toRunFrom = unitOfNearest;
+                                        }
+                                    }
+
+                                    //kite away from close enemies sequence
+                                    if(gc.isMoveReady(unit.id())){
+                                        tryMove(gc, unit, toRunFrom.location().mapLocation().directionTo(unitLocation));
+                                    }
                                 }
                             }
 
-
-                            if (shouldMove && gc.isMoveReady(unit.id())) {
+                            if (gc.isMoveReady(unit.id())) {
                                 if(gc.round() < 1000) {
                                     if(Planet.Earth.equals(gc.planet())){
                                         moveAlongBFSPath(gc, unit, spreadPathfindingMapEarth);
@@ -549,9 +559,13 @@ public class Player {
                             if(numWorkers < 1){
                                 unitTypeToProduce = UnitType.Worker;
                             }
+                            else if (numHealers*3 < numRangers){
+                                unitTypeToProduce = UnitType.Healer;
+                            }
                             else{
                                 unitTypeToProduce = UnitType.Ranger;
                             }
+
                             if( enoughFactories || (gc.karbonite() > (bc.bcUnitTypeBlueprintCost(UnitType.Factory)+200) ) ) {
                                 if (gc.canProduceRobot(unit.id(), unitTypeToProduce)) {
                                     gc.produceRobot(unit.id(), unitTypeToProduce);
