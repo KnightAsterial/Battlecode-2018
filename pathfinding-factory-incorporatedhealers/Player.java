@@ -3,9 +3,7 @@
 import bc.*;
 
 import java.awt.*;
-import java.util.ArrayList;
-import java.util.LinkedList;
-import java.util.Random;
+import java.util.*;
 
 public class Player {
     // Direction is a normal java enum.
@@ -39,7 +37,8 @@ public class Player {
      */
     public static Direction[][] spreadPathfindingMapEarth;
     public static Direction[][] spreadPathfindingMapMars;
-    public static Direction[][] spreadPathfindingMapWorkers;
+
+
     public static Dimension earthDimensions;
     public static Dimension marsDimensions;
 
@@ -91,8 +90,7 @@ public class Player {
             boolean enoughFactories = false;
             UnitType unitTypeToProduce = UnitType.Ranger;
 
-            LinkedList<MapLocation> karboniteLocationQueueEarth = new LinkedList<>();
-            MapLocation currentKarboniteTargetLocation = null;
+            HashMap<MapLocation, Direction[][]> workerKarboniteQueueEarth = new HashMap<MapLocation, Direction[][]>();
 
             MapLocation target;
             MapLocation initialEnemyLocation;
@@ -107,9 +105,14 @@ public class Player {
 
 
             //initial research queue
+            gc.queueResearch(UnitType.Worker);
             gc.queueResearch(UnitType.Ranger);
+            gc.queueResearch(UnitType.Healer);
+            gc.queueResearch(UnitType.Healer);
+            gc.queueResearch(UnitType.Healer);
             gc.queueResearch(UnitType.Ranger);
-            gc.queueResearch(UnitType.Ranger);
+            gc.queueResearch(UnitType.Worker);
+            gc.queueResearch(UnitType.Rocket);
 
 
             //first turn code
@@ -150,7 +153,7 @@ public class Player {
                 initialEnemyLocation = target.clone();
                 initialWorkerLocation = firstStartingUnitLocation;
                 spreadPathfindingMapEarth = updatePathfindingMap(target, earthMap);
-                spreadPathfindingMapWorkers = updatePathfindingMap(initialWorkerLocation, earthMap);
+                workerKarboniteQueueEarth.put(initialWorkerLocation, updatePathfindingMap(initialWorkerLocation, earthMap));
             }
             //MARS FIRST TURN
             else{
@@ -159,8 +162,9 @@ public class Player {
                 //sets target to where first asteroid hits
                 asteroidPattern = gc.asteroidPattern();
                 for (int i = 0; i < 1000; i++) {
-                    if(asteroidPattern.hasAsteroid(i)){
+                    if(asteroidPattern.hasAsteroid(i) && marsMap.isPassableTerrainAt(asteroidPattern.asteroid(i).getLocation())!= 0){
                         target = asteroidPattern.asteroid(i).getLocation();
+                        break;
                     }
                 }
                 spreadPathfindingMapMars = updatePathfindingMap(target, marsMap);
@@ -228,51 +232,40 @@ public class Player {
                     }
 
                     //space for global / macro calculations
-                    if (numFactories < maxFactories){
-                        enoughFactories = false;
-                    }
-                    else{
+                    if (numFactories > maxFactories || numFactories > (gc.round()/20 + 1)){
                         enoughFactories = true;
                         karboniteCollectionStage = true;
+                    }
+                    else{
+                        enoughFactories = false;
                     }
 
                     //updates queue for karbonite collection
                     if(gc.round() % 100 == 60){
                         if(gc.planet().equals(Planet.Earth)){
-                            karboniteLocationQueueEarth.clear();
+                            workerKarboniteQueueEarth.clear();
                             VecMapLocation allLocations = gc.allLocationsWithin(
                                         new MapLocation(Planet.Earth, 0, 0), (long)( Math.pow(earthDimensions.width,2)+Math.pow(earthDimensions.height,2)) );
                             System.out.println("# visible locations = " + allLocations.size());
                             for (int i = 0; i < allLocations.size(); i++) {
                                 if(gc.canSenseLocation(allLocations.get(i)) && gc.karboniteAt(allLocations.get(i)) > 0){
-                                    karboniteLocationQueueEarth.add(allLocations.get(i));
+                                    workerKarboniteQueueEarth.put(allLocations.get(i), updatePathfindingMap(allLocations.get(i), earthMap));
                                 }
                             }
-                            if(karboniteLocationQueueEarth.size() > 0){
-                                currentKarboniteTargetLocation = karboniteLocationQueueEarth.pop();
-                                spreadPathfindingMapWorkers = updatePathfindingMap(currentKarboniteTargetLocation, earthMap);
-                            }
+
                         }
                     }
-
-                    //--------------
-                    if (currentKarboniteTargetLocation != null) {
-                        System.out.println(currentKarboniteTargetLocation);
-                    }
-                    else{
-                        System.out.println("current karbonite location = null");
-                    }
-                    //------------------
+                    
 
                     //updates worker pathfinding map and karbonite target
-                    if(currentKarboniteTargetLocation != null) {
-                        if (gc.canSenseLocation(currentKarboniteTargetLocation) && gc.karboniteAt(currentKarboniteTargetLocation)==0){
-                            if(karboniteLocationQueueEarth.size() > 0){
-                                currentKarboniteTargetLocation = karboniteLocationQueueEarth.pop();
-                                spreadPathfindingMapWorkers = updatePathfindingMap(currentKarboniteTargetLocation, earthMap);
-                            }
-                            else{
-                                currentKarboniteTargetLocation = null;
+                    if(workerKarboniteQueueEarth.size() > 0) {
+                        Iterator it = workerKarboniteQueueEarth.entrySet().iterator();
+                        MapLocation location;
+                        while (it.hasNext()) {
+                            Map.Entry pair = (Map.Entry) it.next();
+                            location = (MapLocation) pair.getKey();
+                            if (gc.canSenseLocation(location) && gc.karboniteAt(location) == 0) {
+                                it.remove(); // avoids a ConcurrentModificationException
                             }
                         }
                     }
@@ -303,15 +296,6 @@ public class Player {
                                 }
                             }
 
-                            //replication loop (maxWorkerNum = 8 atm)
-                            if (numWorkers <= maxWorkerNum) {
-                                for (int j = 0; j < 8; j++) {
-                                    if (gc.canReplicate(unit.id(), directions[j])) {
-                                        gc.replicate(unit.id(), directions[j]);
-                                        break;
-                                    }
-                                }
-                            }
 
                             //blueprints a factory if not adjacent to any other factory
                             if ((unit.workerHasActed() == 0) && !enoughFactories) {
@@ -343,6 +327,16 @@ public class Player {
                                 }
                             }
 
+                            //replication loop (maxWorkerNum = 8 atm)
+                            if ((unit.workerHasActed() == 0) && numWorkers <= maxWorkerNum) {
+                                for (int j = 0; j < 8; j++) {
+                                    if (gc.canReplicate(unit.id(), directions[j])) {
+                                        gc.replicate(unit.id(), directions[j]);
+                                        break;
+                                    }
+                                }
+                            }
+
                             //harvests karbonite from surroundings
                             if ((unit.workerHasActed() == 0)){
                                 for (int j = 0; j < 9; j++) {
@@ -363,11 +357,18 @@ public class Player {
                                 else{
                                     if (gc.isMoveReady(unit.id())) {
                                         if(Planet.Earth.equals(gc.planet())){
-                                            if(currentKarboniteTargetLocation != null){
-                                                //right now if worker cannot reach the tile, it will resort to randomMove
-                                                //possible fix, create a bunch of targets amd targetPathfindingMaps,
-                                                //each worker moves towards the closest one / the one it can reach
-                                                moveAlongBFSPath(gc, unit, spreadPathfindingMapWorkers);
+                                            if(workerKarboniteQueueEarth.size() > 0){
+                                                ArrayList<MapLocation> karboniteLocations = new ArrayList<MapLocation>();
+                                                karboniteLocations.addAll(workerKarboniteQueueEarth.keySet());
+                                                MapLocation toMoveTo = karboniteLocations.get(0);
+                                                long closestDistance = unitLocation.distanceSquaredTo(toMoveTo);
+                                                for (MapLocation location : karboniteLocations) {
+                                                    if(unitLocation.distanceSquaredTo(location) < closestDistance){
+                                                        toMoveTo = location;
+                                                        closestDistance = unitLocation.distanceSquaredTo(location);
+                                                    }
+                                                }
+                                                moveAlongBFSPath(gc, unit, workerKarboniteQueueEarth.get(toMoveTo));
                                             }
                                             else{
                                                 randomMove(gc, unit);
@@ -381,34 +382,16 @@ public class Player {
 
                             }
                         }
-                        
+
                         //healer loop
                         else if (unit.unitType().equals(UnitType.Healer)) {
-                        	VecUnit enemiesInFiringRange = gc.senseNearbyUnitsByTeam(unitLocation, 70, enemyTeam);
-                        	VecUnit friendliesInFiringRange = gc.senseNearbyUnitsByTeam(unitLocation, 30, myTeam);
+                            VecUnit enemiesInFiringRange = gc.senseNearbyUnitsByTeam(unitLocation, 70, enemyTeam);
+                            VecUnit friendliesInFiringRange = gc.senseNearbyUnitsByTeam(unitLocation, 30, myTeam);
                             boolean shouldMove = true;
 
                             if (enemiesInFiringRange.size() > 0) {
-
-                                ArrayList<Unit> closestUnitsE = new ArrayList<Unit>();
                                 ArrayList<Unit> closestUnitsF = new ArrayList<Unit>();
 
-
-                                //finding enemy sequence
-                                long minDistanceTo = unitLocation.distanceSquaredTo(enemiesInFiringRange.get(0).location().mapLocation());
-                                long tempDistanceSquaredTo_Holder;
-                                for (int j = 0; j < enemiesInFiringRange.size(); j++) {
-                                    tempDistanceSquaredTo_Holder = unitLocation.distanceSquaredTo(enemiesInFiringRange.get(j).location().mapLocation());
-                                    if (tempDistanceSquaredTo_Holder < minDistanceTo) {
-                                        minDistanceTo = tempDistanceSquaredTo_Holder;
-                                    }
-                                }
-                                for (int j = 0; j < enemiesInFiringRange.size(); j++) {
-                                    if (enemiesInFiringRange.get(j).location().mapLocation().distanceSquaredTo(unitLocation) == minDistanceTo) {
-                                        closestUnitsE.add(enemiesInFiringRange.get(j));
-                                    }
-                                }
-                                
                                 //finding friendly sequence
                                 long minDistanceToF = unitLocation.distanceSquaredTo(friendliesInFiringRange.get(0).location().mapLocation());
                                 long tempDistanceSquaredTo_HolderF;
@@ -427,26 +410,18 @@ public class Player {
                                 //firing priority: closest target. Among equally close targets, fire at one with lowest health
                                 Unit toHealAt = closestUnitsF.get(0);
                                 //kite priority, run from closest target. among equally close targets, run from one with highest health
-                                Unit toRunFrom = closestUnitsE.get(0);
+                                Unit toRunTo = closestUnitsF.get(0);
 
                                 long minHealth = closestUnitsF.get(0).health();
-                                long maxHealth = closestUnitsE.get(0).health();
+
                                 //finds the lowest health friendly to heal
                                 for (Unit unitOfNearest : closestUnitsF) {
                                     if (unitOfNearest.health() < minHealth) {
                                         minHealth = unitOfNearest.health();
                                         toHealAt = unitOfNearest;
+                                        toRunTo = unitOfNearest;
                                     }
                                 }
-                                //finds the highest health enemy to zone from
-                                for (Unit unitOfNearest : closestUnitsE)
-                                {
-                                	if (unitOfNearest.health() > maxHealth){
-                                        maxHealth = unitOfNearest.health();
-                                        toRunFrom = unitOfNearest;
-                                    }
-                                }
-                                
 
                                 //heal
                                 if (gc.isHealReady(unit.id())) {
@@ -455,12 +430,11 @@ public class Player {
                                     }
                                 }
 
-                                //kite away from close enemies sequence
+                                //tries to stay with rangers/allies
                                 if(gc.isMoveReady(unit.id())){
-                                    tryMove(gc, unit, toRunFrom.location().mapLocation().directionTo(unitLocation));
+                                    tryMove(gc, unit, toRunTo.location().mapLocation().directionTo(unitLocation));
                                 }
                             }
-
 
 
                             if (shouldMove && gc.isMoveReady(unit.id())) {
@@ -478,7 +452,6 @@ public class Player {
                             }
 
                         }
-
 
                         //knight loop
                         else if (unit.unitType().equals(UnitType.Knight)) {
@@ -572,6 +545,12 @@ public class Player {
                                     gc.unload(unit.id(), directions[j]);
                                     break;
                                 }
+                            }
+                            if(numWorkers < 1){
+                                unitTypeToProduce = UnitType.Worker;
+                            }
+                            else{
+                                unitTypeToProduce = UnitType.Ranger;
                             }
                             if( enoughFactories || (gc.karbonite() > (bc.bcUnitTypeBlueprintCost(UnitType.Factory)+200) ) ) {
                                 if (gc.canProduceRobot(unit.id(), unitTypeToProduce)) {
