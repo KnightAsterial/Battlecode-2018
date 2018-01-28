@@ -35,7 +35,6 @@ public class Player {
     getValueInPathfindingMap(x,y)
     setValueInPathfindingMap(x,y);
      */
-    public static Direction[][] spreadPathfindingMapEarth;
     public static Direction[][] spreadPathfindingMapMars;
 
 
@@ -96,14 +95,8 @@ public class Player {
             HashMap<MapLocation, Direction[][]> workerKarboniteQueueEarth = new HashMap<MapLocation, Direction[][]>();
 
             MapLocation target;
-            MapLocation initialEnemyLocation;
             MapLocation initialWorkerLocation;
-            /**
-             * equals 0 if symmetrical over x axis
-             * equals 1 if symmetrical over y axis
-             * equal 2 if symmetrical by rotation
-             */
-            int earthSymmetry;
+
             AsteroidPattern asteroidPattern;
 
             boolean escapeToMarsMode = false;
@@ -117,7 +110,9 @@ public class Player {
 
             HashMap<MapLocation, Direction[][]> factoriesToBeBuild = new HashMap<MapLocation, Direction[][]>();
 
-            //HashMap<MapLocation, Direction[][]> initialEnemyTargets = new HashMap<MapLocation, Direction[][]>();
+            HashMap<MapLocation, Direction[][]> enemyTargetsEarth = new HashMap<MapLocation, Direction[][]>();
+            HashMap<MapLocation, Direction[][]> enemyTargetsMars = new HashMap<MapLocation, Direction[][]>();
+            ArrayList<MapLocation> initialEnemyLocations = new ArrayList<MapLocation>();
 
 
             //initial research queue
@@ -134,45 +129,44 @@ public class Player {
             gc.queueResearch(UnitType.Rocket);
 
 
-            //first turn code
-            if(isSymmetricalOverX(earthMap)){
-                earthSymmetry = 0;
-            }
-            else if(isSymmetricalOverY(earthMap)){
-                earthSymmetry = 1;
-            }
-            else{
-                earthSymmetry = 2;
-            }
+
 
 
             if(gc.planet() == Planet.Earth) {
                 //sets target to where first enemies are
                 VecUnit startingUnits = gc.myUnits();
                 MapLocation firstStartingUnitLocation = startingUnits.get(0).location().mapLocation();
-
-                //if symmetrical over x
-                if (earthSymmetry == 0){
-                    target = new MapLocation(Planet.Earth, 
-                                                firstStartingUnitLocation.getX(), 
-                                                (int)earthMap.getHeight()-1-firstStartingUnitLocation.getY());
-                }
-                //if symmetrical over y
-                else if (earthSymmetry == 1){
-                    target = new MapLocation(Planet.Earth,
-                            (int)earthMap.getWidth()-1-firstStartingUnitLocation.getX(),
-                            firstStartingUnitLocation.getY());
-                }
-                //if rotationally symmetrical
-                else{
-                    target = new MapLocation(Planet.Earth,
-                            (int)earthMap.getWidth()-1-firstStartingUnitLocation.getX(),
-                            (int)earthMap.getHeight()-1-firstStartingUnitLocation.getY());
-                }
-                initialEnemyLocation = target.clone();
                 initialWorkerLocation = firstStartingUnitLocation;
-                spreadPathfindingMapEarth = updatePathfindingMap(target, earthMap);
                 workerKarboniteQueueEarth.put(initialWorkerLocation, updatePathfindingMap(initialWorkerLocation, earthMap));
+
+                VecUnit allStartingUnitsEarth = earthMap.getInitial_units();
+                for (int i = 0; i < allStartingUnitsEarth.size(); i++) {
+                    Unit currentUnit = allStartingUnitsEarth.get(i);
+                    if(!currentUnit.team().equals(myTeam)){
+                        initialEnemyLocations.add(currentUnit.location().mapLocation());
+                    }
+                }
+
+                Direction[][] mapToEnemyLocation;
+                for (int i = 0; i < allStartingUnitsEarth.size(); i++) {
+                    Unit currentUnit = allStartingUnitsEarth.get(i);
+                    boolean canReachAny = true;
+                    for(Direction[][] generatedMap : enemyTargetsEarth.values()){
+                        if (getValueInPathfindingMap(currentUnit.location().mapLocation().getX(), currentUnit.location().mapLocation().getY(), generatedMap) == null){
+                            canReachAny = false;
+                            break;
+                        }
+                    }
+                    if(enemyTargetsEarth.keySet().size() == 0 || !canReachAny){
+                        for (int j = 0; j < initialEnemyLocations.size(); j++) {
+                            mapToEnemyLocation = updatePathfindingMap(initialEnemyLocations.get(j), earthMap);
+                            if(getValueInPathfindingMap(currentUnit.location().mapLocation().getX(), currentUnit.location().mapLocation().getY(), mapToEnemyLocation) != null){
+                                enemyTargetsEarth.put(initialEnemyLocations.get(j), mapToEnemyLocation);
+                                break;
+                            }
+                        }
+                    }
+                }
             }
             //MARS FIRST TURN
             else{
@@ -276,6 +270,13 @@ public class Player {
                         escapeToMarsMode = true;
                     }
 
+                    if(gc.planet().equals(Planet.Earth)) {
+                        System.out.println("earth targets: " + enemyTargetsEarth.keySet());
+                    }
+                    else{
+                        System.out.println("mars target: " + enemyTargetsMars.keySet());
+                    }
+
                     //updates queue for karbonite collection
                     if(gc.round() % 100 == 60){
                         if(gc.planet().equals(Planet.Earth)){
@@ -313,7 +314,7 @@ public class Player {
                         while (it.hasNext()) {
                             Map.Entry pair = (Map.Entry) it.next();
                             location = (MapLocation) pair.getKey();
-                            if (gc.canSenseLocation(location) && gc.senseUnitAtLocation(location).unitType().equals(UnitType.Factory)) {
+                            if (gc.canSenseLocation(location) && gc.hasUnitAtLocation(location) && gc.senseUnitAtLocation(location).unitType().equals(UnitType.Factory)) {
                                 if(gc.senseUnitAtLocation(location).structureIsBuilt() != 0) {
                                     it.remove(); // avoids a ConcurrentModificationException
                                 }
@@ -334,6 +335,38 @@ public class Player {
 
                         MapLocation unitLocation = unit.location().mapLocation();
                         // Most methods on gc take unit IDs, instead of the unit objects themselves.
+
+                        //code for all units to run------------------
+
+                        //delete targets if close enough and no enemies are within radius of 70 to that target
+                        if(gc.planet().equals(Planet.Earth)) {
+                            if(enemyTargetsEarth.size() > 0){
+                                Iterator it = enemyTargetsEarth.entrySet().iterator();
+                                MapLocation location;
+                                while (it.hasNext()) {
+                                    Map.Entry pair = (Map.Entry) it.next();
+                                    location = (MapLocation) pair.getKey();
+                                    if(unitLocation.distanceSquaredTo(location) <= 2){
+                                        it.remove();
+                                    }
+                                }
+                            }
+                        }
+                        else{
+                            if(enemyTargetsMars.size() > 0){
+                                Iterator it = enemyTargetsMars.entrySet().iterator();
+                                MapLocation location;
+                                while (it.hasNext()) {
+                                    Map.Entry pair = (Map.Entry) it.next();
+                                    location = (MapLocation) pair.getKey();
+                                    if(unitLocation.distanceSquaredTo(location) <= 2){
+                                        if(gc.senseNearbyUnitsByTeam(location, 70, enemyTeam).size() <= 0){
+                                            it.remove();
+                                        }
+                                    }
+                                }
+                            }
+                        }
 
                         if (unit.unitType().equals(UnitType.Worker)) {
                             boolean shouldMove = true;
@@ -469,30 +502,7 @@ public class Player {
 
                             if (shouldMove && gc.isMoveReady(unit.id())) {
                                 if(escapeToMarsMode && gc.planet().equals(Planet.Earth)){
-                                    boolean adjacentToRocket = false;
-                                    for (Unit unitNearWorker : unitsAdjacentToWorker) {
-                                        if(unitNearWorker.unitType().equals(UnitType.Rocket)){
-                                            adjacentToRocket = true;
-                                        }
-                                    }
-                                    if(!adjacentToRocket) {
-                                        ArrayList<MapLocation> rocketLocations = new ArrayList<MapLocation>();
-                                        rocketLocations.addAll(rocketsOnEarthLocations.keySet());
-                                        if(rocketLocations.size() > 0) {
-                                            MapLocation toMoveTo = rocketLocations.get(0);
-                                            long closestDistance = unitLocation.distanceSquaredTo(toMoveTo);
-                                            for (MapLocation location : rocketLocations) {
-                                                if (unitLocation.distanceSquaredTo(location) < closestDistance) {
-                                                    toMoveTo = location;
-                                                    closestDistance = unitLocation.distanceSquaredTo(location);
-                                                }
-                                            }
-                                            moveAlongBFSPath(gc, unit, rocketsOnEarthLocations.get(toMoveTo));
-                                        }
-                                        else{
-                                            randomMove(gc, unit);
-                                        }
-                                    }
+                                    moveToClosestInTable(gc, unit, rocketsOnEarthLocations);
                                 }
                                 else if (factoriesToBeBuild.size() > 0){
                                     moveToClosestInTable(gc, unit, factoriesToBeBuild);
@@ -590,30 +600,15 @@ public class Player {
                                             }
                                         }
                                         if(!adjacentToRocket) {
-                                            ArrayList<MapLocation> rocketLocations = new ArrayList<MapLocation>();
-                                            rocketLocations.addAll(rocketsOnEarthLocations.keySet());
-                                            if(rocketLocations.size() > 0) {
-                                                MapLocation toMoveTo = rocketLocations.get(0);
-                                                long closestDistance = unitLocation.distanceSquaredTo(toMoveTo);
-                                                for (MapLocation location : rocketLocations) {
-                                                    if (unitLocation.distanceSquaredTo(location) < closestDistance) {
-                                                        toMoveTo = location;
-                                                        closestDistance = unitLocation.distanceSquaredTo(location);
-                                                    }
-                                                }
-                                                moveAlongBFSPath(gc, unit, rocketsOnEarthLocations.get(toMoveTo));
-                                            }
-                                            else{
-                                                randomMove(gc, unit);
-                                            }
+                                            moveToClosestInTable(gc, unit, rocketsOnEarthLocations);
                                         }
                                     }
                                     else {
-                                        moveAlongBFSPath(gc, unit, spreadPathfindingMapEarth);
+                                        combatMoveTowardsEnemy(gc, unit, enemyTargetsEarth, earthMap);
                                     }
                                 }
                                 else{
-                                    moveAlongBFSPath(gc, unit, spreadPathfindingMapMars);
+                                    combatMoveTowardsEnemy(gc, unit, enemyTargetsMars, marsMap);
                                 }
 
                             }
@@ -699,30 +694,15 @@ public class Player {
                                             }
                                         }
                                         if(!adjacentToRocket) {
-                                            ArrayList<MapLocation> rocketLocations = new ArrayList<MapLocation>();
-                                            rocketLocations.addAll(rocketsOnEarthLocations.keySet());
-                                            if(rocketLocations.size() > 0) {
-                                                MapLocation toMoveTo = rocketLocations.get(0);
-                                                long closestDistance = unitLocation.distanceSquaredTo(toMoveTo);
-                                                for (MapLocation location : rocketLocations) {
-                                                    if (unitLocation.distanceSquaredTo(location) < closestDistance) {
-                                                        toMoveTo = location;
-                                                        closestDistance = unitLocation.distanceSquaredTo(location);
-                                                    }
-                                                }
-                                                moveAlongBFSPath(gc, unit, rocketsOnEarthLocations.get(toMoveTo));
-                                            }
-                                            else{
-                                                randomMove(gc, unit);
-                                            }
+                                            moveToClosestInTable(gc, unit, rocketsOnEarthLocations);
                                         }
                                     }
                                     else {
-                                        moveAlongBFSPath(gc, unit, spreadPathfindingMapEarth);
+                                        combatMoveTowardsEnemy(gc, unit, enemyTargetsEarth, earthMap);
                                     }
                                 }
                                 else{
-                                    moveAlongBFSPath(gc, unit, spreadPathfindingMapMars);
+                                    combatMoveTowardsEnemy(gc, unit, enemyTargetsMars, marsMap);
                                 }
 
                             }
@@ -767,7 +747,10 @@ public class Player {
                             rocketsWaitingForUnits.add(unitLocation);
                             VecUnitID unitsInRocket = unit.structureGarrison();
                             if(gc.planet().equals(Planet.Earth)){
-                                if(unitsInRocket.size() == unit.structureMaxCapacity() || gc.round() > 740){
+                                //launch conditions: rocket full, over turn 740, or if rocket is under fire and has taken more than half its health in damage
+                                if(unitsInRocket.size() == unit.structureMaxCapacity()
+                                        || gc.round() > 740
+                                        || (unit.structureIsBuilt()!=0 && ((double)unit.health() / (double)unit.maxHealth() < 0.5)) ){
                                     MapLocation launchTarget = passableLocationsOnMars.get(rand.nextInt(passableLocationsOnMars.size()));
                                     if(gc.canLaunchRocket(unit.id(), launchTarget)){
                                         gc.launchRocket(unit.id(), launchTarget);
@@ -1087,6 +1070,84 @@ public class Player {
         }
         else{
             randomMove(gc, unit);
+        }
+    }
+
+    public static void combatMoveTowardsEnemy(GameController gc, Unit unit, HashMap<MapLocation, Direction[][]> table, PlanetMap planetMap){
+        MapLocation unitLocation = unit.location().mapLocation();
+        if(table.size() > 0){
+            ArrayList<MapLocation> enemyLocations = new ArrayList<MapLocation>();
+            enemyLocations.addAll(table.keySet());
+
+            boolean atleastOneNotNull = false;
+            //temp values
+            MapLocation toMoveTo = null;
+            long closestDistance = 1000000;
+            for(MapLocation location : enemyLocations){
+                if(getValueInPathfindingMap(unitLocation.getX(), unitLocation.getY(), table.get(location)) != null){
+                    atleastOneNotNull = true;
+                    toMoveTo = location;
+                    closestDistance = unitLocation.distanceSquaredTo(toMoveTo);
+                    break;
+                }
+            }
+            if(atleastOneNotNull){
+                for (MapLocation location : enemyLocations) {
+                    if(getValueInPathfindingMap(unitLocation.getX(), unitLocation.getY(), table.get(location)) != null && unitLocation.distanceSquaredTo(location) < closestDistance){
+                        toMoveTo = location;
+                        closestDistance = unitLocation.distanceSquaredTo(location);
+                    }
+                }
+                moveAlongBFSPath(gc, unit, table.get(toMoveTo));
+            }
+            else{
+                VecUnit nearbyEnemies = gc.senseNearbyUnitsByTeam(unitLocation, 70, enemyTeam);
+                if(nearbyEnemies.size() <= 0){
+                    randomMove(gc, unit);
+                }
+                else{
+                    //run through list of enemies I can see. if i can move towards at least one of them, add it to the table and go to it, otherwise random move
+                    Direction[][] generatedMap;
+                    boolean foundNewTarget = false;
+                    for (int i = 0; i < nearbyEnemies.size(); i++) {
+                        generatedMap = updatePathfindingMap(nearbyEnemies.get(i).location().mapLocation(), planetMap);
+                        if(getValueInPathfindingMap(unitLocation.getX(), unitLocation.getY(), generatedMap) != null){
+                            foundNewTarget = true;
+                            table.put(nearbyEnemies.get(i).location().mapLocation(), generatedMap);
+                            moveAlongBFSPath(gc, unit, generatedMap);
+                            break;
+                        }
+                    }
+                    if(!foundNewTarget){
+                        randomMove(gc, unit);
+                    }
+                }
+            }
+
+
+        }
+        else{
+            VecUnit nearbyEnemies = gc.senseNearbyUnitsByTeam(unitLocation, 70, enemyTeam);
+            if(nearbyEnemies.size() <= 0){
+                randomMove(gc, unit);
+            }
+            else{
+                //run through list of enemies I can see. if i can move towards at least one of them, add it to the table and go to it, otherwise random move
+                Direction[][] generatedMap;
+                boolean foundNewTarget = false;
+                for (int i = 0; i < nearbyEnemies.size(); i++) {
+                    generatedMap = updatePathfindingMap(nearbyEnemies.get(i).location().mapLocation(), planetMap);
+                    if(getValueInPathfindingMap(unitLocation.getX(), unitLocation.getY(), generatedMap) != null){
+                        foundNewTarget = true;
+                        table.put(nearbyEnemies.get(i).location().mapLocation(), generatedMap);
+                        moveAlongBFSPath(gc, unit, generatedMap);
+                        break;
+                    }
+                }
+                if(!foundNewTarget){
+                    randomMove(gc, unit);
+                }
+            }
         }
     }
 

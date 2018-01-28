@@ -151,24 +151,17 @@ public class Player {
                 VecUnit startingUnits = gc.myUnits();
                 MapLocation firstStartingUnitLocation = startingUnits.get(0).location().mapLocation();
 
-                //if symmetrical over x
-                if (earthSymmetry == 0){
-                    target = new MapLocation(Planet.Earth, 
-                                                firstStartingUnitLocation.getX(), 
-                                                (int)earthMap.getHeight()-1-firstStartingUnitLocation.getY());
+                //tempthing
+                target = null;
+
+                VecUnit allInitialLocations = earthMap.getInitial_units();
+                for (int i = 0; i < allInitialLocations.size(); i++) {
+                    if(allInitialLocations.get(i).team().equals(enemyTeam)){
+                        target = allInitialLocations.get(i).location().mapLocation();
+                        break;
+                    }
                 }
-                //if symmetrical over y
-                else if (earthSymmetry == 1){
-                    target = new MapLocation(Planet.Earth,
-                            (int)earthMap.getWidth()-1-firstStartingUnitLocation.getX(),
-                            firstStartingUnitLocation.getY());
-                }
-                //if rotationally symmetrical
-                else{
-                    target = new MapLocation(Planet.Earth,
-                            (int)earthMap.getWidth()-1-firstStartingUnitLocation.getX(),
-                            (int)earthMap.getHeight()-1-firstStartingUnitLocation.getY());
-                }
+
                 initialEnemyLocation = target.clone();
                 initialWorkerLocation = firstStartingUnitLocation;
                 spreadPathfindingMapEarth = updatePathfindingMap(target, earthMap);
@@ -313,7 +306,7 @@ public class Player {
                         while (it.hasNext()) {
                             Map.Entry pair = (Map.Entry) it.next();
                             location = (MapLocation) pair.getKey();
-                            if (gc.canSenseLocation(location) && gc.senseUnitAtLocation(location).unitType().equals(UnitType.Factory)) {
+                            if (gc.canSenseLocation(location) && gc.hasUnitAtLocation(location) && gc.senseUnitAtLocation(location).unitType().equals(UnitType.Factory)) {
                                 if(gc.senseUnitAtLocation(location).structureIsBuilt() != 0) {
                                     it.remove(); // avoids a ConcurrentModificationException
                                 }
@@ -476,22 +469,7 @@ public class Player {
                                         }
                                     }
                                     if(!adjacentToRocket) {
-                                        ArrayList<MapLocation> rocketLocations = new ArrayList<MapLocation>();
-                                        rocketLocations.addAll(rocketsOnEarthLocations.keySet());
-                                        if(rocketLocations.size() > 0) {
-                                            MapLocation toMoveTo = rocketLocations.get(0);
-                                            long closestDistance = unitLocation.distanceSquaredTo(toMoveTo);
-                                            for (MapLocation location : rocketLocations) {
-                                                if (unitLocation.distanceSquaredTo(location) < closestDistance) {
-                                                    toMoveTo = location;
-                                                    closestDistance = unitLocation.distanceSquaredTo(location);
-                                                }
-                                            }
-                                            moveAlongBFSPath(gc, unit, rocketsOnEarthLocations.get(toMoveTo));
-                                        }
-                                        else{
-                                            randomMove(gc, unit);
-                                        }
+                                        moveToClosestInTable(gc, unit, rocketsOnEarthLocations);
                                     }
                                 }
                                 else if (factoriesToBeBuild.size() > 0){
@@ -590,22 +568,7 @@ public class Player {
                                             }
                                         }
                                         if(!adjacentToRocket) {
-                                            ArrayList<MapLocation> rocketLocations = new ArrayList<MapLocation>();
-                                            rocketLocations.addAll(rocketsOnEarthLocations.keySet());
-                                            if(rocketLocations.size() > 0) {
-                                                MapLocation toMoveTo = rocketLocations.get(0);
-                                                long closestDistance = unitLocation.distanceSquaredTo(toMoveTo);
-                                                for (MapLocation location : rocketLocations) {
-                                                    if (unitLocation.distanceSquaredTo(location) < closestDistance) {
-                                                        toMoveTo = location;
-                                                        closestDistance = unitLocation.distanceSquaredTo(location);
-                                                    }
-                                                }
-                                                moveAlongBFSPath(gc, unit, rocketsOnEarthLocations.get(toMoveTo));
-                                            }
-                                            else{
-                                                randomMove(gc, unit);
-                                            }
+                                            moveToClosestInTable(gc, unit, rocketsOnEarthLocations);
                                         }
                                     }
                                     else {
@@ -699,22 +662,7 @@ public class Player {
                                             }
                                         }
                                         if(!adjacentToRocket) {
-                                            ArrayList<MapLocation> rocketLocations = new ArrayList<MapLocation>();
-                                            rocketLocations.addAll(rocketsOnEarthLocations.keySet());
-                                            if(rocketLocations.size() > 0) {
-                                                MapLocation toMoveTo = rocketLocations.get(0);
-                                                long closestDistance = unitLocation.distanceSquaredTo(toMoveTo);
-                                                for (MapLocation location : rocketLocations) {
-                                                    if (unitLocation.distanceSquaredTo(location) < closestDistance) {
-                                                        toMoveTo = location;
-                                                        closestDistance = unitLocation.distanceSquaredTo(location);
-                                                    }
-                                                }
-                                                moveAlongBFSPath(gc, unit, rocketsOnEarthLocations.get(toMoveTo));
-                                            }
-                                            else{
-                                                randomMove(gc, unit);
-                                            }
+                                            moveToClosestInTable(gc, unit, rocketsOnEarthLocations);
                                         }
                                     }
                                     else {
