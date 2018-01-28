@@ -258,7 +258,7 @@ public class Player {
                     }
 
                     //space for global / macro calculations
-                    if (numFactories > maxFactories || ((numFactories-2)*3) > (numRangers)){
+                    if (numFactories > maxFactories || ((numFactories)*2) > (numRangers)){
                         enoughFactories = true;
                         karboniteCollectionStage = true;
                         maxWorkerNum = 8;
@@ -270,15 +270,8 @@ public class Player {
                         escapeToMarsMode = true;
                     }
 
-                    if(gc.planet().equals(Planet.Earth)) {
-                        System.out.println("earth targets: " + enemyTargetsEarth.keySet());
-                    }
-                    else{
-                        System.out.println("mars target: " + enemyTargetsMars.keySet());
-                    }
-
                     //updates queue for karbonite collection
-                    if(gc.round() % 100 == 60){
+                    if(gc.round() % 100 == 60 || gc.round() == 2){
                         if(gc.planet().equals(Planet.Earth)){
                             workerKarboniteQueueEarth.clear();
                             VecMapLocation allLocations = gc.allLocationsWithin(
@@ -472,10 +465,12 @@ public class Player {
                                     }
                                 }
                                 else {
-                                    for (int j = 0; j < 8; j++) {
-                                        if (gc.canReplicate(unit.id(), directions[j])) {
-                                            gc.replicate(unit.id(), directions[j]);
-                                            break;
+                                    if(!enoughFactories || workerKarboniteQueueEarth.size() > 0) {
+                                        for (int j = 0; j < 8; j++) {
+                                            if (gc.canReplicate(unit.id(), directions[j])) {
+                                                gc.replicate(unit.id(), directions[j]);
+                                                break;
+                                            }
                                         }
                                     }
                                 }
@@ -507,9 +502,11 @@ public class Player {
                                 else if (factoriesToBeBuild.size() > 0){
                                     moveToClosestInTable(gc, unit, factoriesToBeBuild);
                                 }
+                                /*
                                 else if(!enoughFactories){
                                     randomMove(gc, unit);
                                 }
+                                */
                                 else{
                                     if (gc.isMoveReady(unit.id())) {
                                         if(Planet.Earth.equals(gc.planet())){
@@ -1101,52 +1098,60 @@ public class Player {
                 moveAlongBFSPath(gc, unit, table.get(toMoveTo));
             }
             else{
-                VecUnit nearbyEnemies = gc.senseNearbyUnitsByTeam(unitLocation, 70, enemyTeam);
-                if(nearbyEnemies.size() <= 0){
-                    randomMove(gc, unit);
-                }
-                else{
-                    //run through list of enemies I can see. if i can move towards at least one of them, add it to the table and go to it, otherwise random move
-                    Direction[][] generatedMap;
-                    boolean foundNewTarget = false;
-                    for (int i = 0; i < nearbyEnemies.size(); i++) {
-                        generatedMap = updatePathfindingMap(nearbyEnemies.get(i).location().mapLocation(), planetMap);
-                        if(getValueInPathfindingMap(unitLocation.getX(), unitLocation.getY(), generatedMap) != null){
-                            foundNewTarget = true;
-                            table.put(nearbyEnemies.get(i).location().mapLocation(), generatedMap);
-                            moveAlongBFSPath(gc, unit, generatedMap);
-                            break;
+                if(gc.getTimeLeftMs() > 1000 || (gc.getTimeLeftMs() < 1000 && gc.round()%3==0)) {
+                    VecUnit nearbyEnemies = gc.senseNearbyUnitsByTeam(unitLocation, 70, enemyTeam);
+                    if (nearbyEnemies.size() <= 0) {
+                        randomMove(gc, unit);
+                    } else {
+                        //run through list of enemies I can see. if i can move towards at least one of them, add it to the table and go to it, otherwise random move
+                        Direction[][] generatedMap;
+                        boolean foundNewTarget = false;
+                        for (int i = 0; i < nearbyEnemies.size(); i++) {
+                            generatedMap = updatePathfindingMap(nearbyEnemies.get(i).location().mapLocation(), planetMap);
+                            if (getValueInPathfindingMap(unitLocation.getX(), unitLocation.getY(), generatedMap) != null) {
+                                foundNewTarget = true;
+                                table.put(nearbyEnemies.get(i).location().mapLocation(), generatedMap);
+                                moveAlongBFSPath(gc, unit, generatedMap);
+                                break;
+                            }
+                        }
+                        if (!foundNewTarget) {
+                            randomMove(gc, unit);
                         }
                     }
-                    if(!foundNewTarget){
-                        randomMove(gc, unit);
-                    }
+                }
+                else{
+                    randomMove(gc, unit);
                 }
             }
 
 
         }
         else{
-            VecUnit nearbyEnemies = gc.senseNearbyUnitsByTeam(unitLocation, 70, enemyTeam);
-            if(nearbyEnemies.size() <= 0){
-                randomMove(gc, unit);
-            }
-            else{
-                //run through list of enemies I can see. if i can move towards at least one of them, add it to the table and go to it, otherwise random move
-                Direction[][] generatedMap;
-                boolean foundNewTarget = false;
-                for (int i = 0; i < nearbyEnemies.size(); i++) {
-                    generatedMap = updatePathfindingMap(nearbyEnemies.get(i).location().mapLocation(), planetMap);
-                    if(getValueInPathfindingMap(unitLocation.getX(), unitLocation.getY(), generatedMap) != null){
-                        foundNewTarget = true;
-                        table.put(nearbyEnemies.get(i).location().mapLocation(), generatedMap);
-                        moveAlongBFSPath(gc, unit, generatedMap);
-                        break;
+            if (gc.getTimeLeftMs() > 1000 || (gc.getTimeLeftMs() < 1000 && gc.round()%3==0) ) {
+                VecUnit nearbyEnemies = gc.senseNearbyUnitsByTeam(unitLocation, 70, enemyTeam);
+                if (nearbyEnemies.size() <= 0) {
+                    randomMove(gc, unit);
+                } else {
+                    //run through list of enemies I can see. if i can move towards at least one of them, add it to the table and go to it, otherwise random move
+                    Direction[][] generatedMap;
+                    boolean foundNewTarget = false;
+                    for (int i = 0; i < nearbyEnemies.size(); i++) {
+                        generatedMap = updatePathfindingMap(nearbyEnemies.get(i).location().mapLocation(), planetMap);
+                        if (getValueInPathfindingMap(unitLocation.getX(), unitLocation.getY(), generatedMap) != null) {
+                            foundNewTarget = true;
+                            table.put(nearbyEnemies.get(i).location().mapLocation(), generatedMap);
+                            moveAlongBFSPath(gc, unit, generatedMap);
+                            break;
+                        }
+                    }
+                    if (!foundNewTarget) {
+                        randomMove(gc, unit);
                     }
                 }
-                if(!foundNewTarget){
-                    randomMove(gc, unit);
-                }
+            }
+            else{
+                randomMove(gc, unit);
             }
         }
     }
