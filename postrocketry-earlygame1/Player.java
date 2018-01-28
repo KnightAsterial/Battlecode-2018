@@ -259,7 +259,7 @@ public class Player {
                     }
 
                     //space for global / macro calculations
-                    if (numFactories > maxFactories || numFactories > (gc.round()/20 + 1)){
+                    if (numFactories > maxFactories || (numFactories*3) > (numRangers)){
                         enoughFactories = true;
                         karboniteCollectionStage = true;
                     }
@@ -419,6 +419,14 @@ public class Player {
                                             gc.replicate(unit.id(), directions[j]);
                                             break;
                                         }
+                                    }
+                                }
+                            }
+                            if(gc.round() > 750 && gc.planet().equals(Planet.Mars) && (unit.workerHasActed() == 0)){
+                                for (int j = 0; j < 8; j++) {
+                                    if (gc.canReplicate(unit.id(), directions[j])) {
+                                        gc.replicate(unit.id(), directions[j]);
+                                        break;
                                     }
                                 }
                             }
@@ -736,7 +744,7 @@ public class Player {
                                     }
                                 }
                             }
-                            else if ( enoughFactories || (gc.karbonite() > (bc.bcUnitTypeBlueprintCost(UnitType.Factory)+200) ) ) {
+                            else if ( enoughFactories || (gc.karbonite() > (bc.bcUnitTypeBlueprintCost(UnitType.Factory)+41) ) ) {
                                 if (gc.canProduceRobot(unit.id(), unitTypeToProduce)) {
                                     gc.produceRobot(unit.id(), unitTypeToProduce);
                                 }
@@ -818,11 +826,13 @@ public class Player {
                     }
                     rocketsWaitingForUnits.clear();
 
+                    /*
                     if(escapeToMarsMode) {
                         System.out.println(rocketsOnEarthLocations.keySet());
                         System.out.println(rocketsWaitingForUnits);
                         rocketsWaitingForUnits.clear();
                     }
+                    */
 
 
                 }
